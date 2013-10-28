@@ -17,25 +17,24 @@ namespace HostileNetwork {
 
         private static void launchServer() {
 
-            const int PORT = 58008;
             string data = "";
-            string sendAddressString = "127.0.0.1";
 
-            UdpClient server = new UdpClient(PORT);
-            IPAddress sendAddress = IPAddress.Parse(sendAddressString);
+            UdpClient server = new UdpClient(Constants.PORT);
+            IPAddress sendAddress = IPAddress.Parse(Constants.SEND_ADDRESS_STRING);
 
-            IPEndPoint remoteIPEndPoint = new IPEndPoint(sendAddress, PORT);
+            IPEndPoint remoteIPEndPoint = new IPEndPoint(sendAddress, Constants.PORT);
 
             Console.WriteLine("Server started, waiting for client connection...");
 
             while (true) {
                 byte[] receivedBytes = server.Receive(ref remoteIPEndPoint);
+                server.Connect(remoteIPEndPoint);
                 data = Encoding.ASCII.GetString(receivedBytes);
                 Console.WriteLine("Handling client at " + remoteIPEndPoint + " - ");
                 Console.WriteLine("Message Received " + data.TrimEnd());
 
-
-                server.Send(receivedBytes, receivedBytes.Length, remoteIPEndPoint);
+                Utils.sendTo(server, receivedBytes);
+                //server.Send(receivedBytes, receivedBytes.Length, remoteIPEndPoint);
                 Console.WriteLine("Message Echoed to" + remoteIPEndPoint + data);
             }
 

@@ -35,16 +35,14 @@ namespace HostileNetwork {
 
         private static void launchClient() {
             
-            const int PORT = 58008;
             string data = "";
-            string sendAddressString = "127.0.0.1";
+          
             byte[] sendBytes = new Byte[1024];
             byte[] rcvPacket = new Byte[1024];
             UdpClient client = new UdpClient();
-
-            IPAddress sendAddress = IPAddress.Parse(sendAddressString);
-            client.Connect(sendAddress, PORT);
-            IPEndPoint remoteIPEndPoint = new IPEndPoint(sendAddress, PORT);
+            IPAddress sendAddress = IPAddress.Parse(Constants.SEND_ADDRESS_STRING);
+            client.Connect(sendAddress, Constants.PORT);
+            IPEndPoint remoteIPEndPoint = new IPEndPoint(sendAddress, Constants.PORT);
 
             Console.WriteLine("Client is Started");
             Console.WriteLine("Type your message");
@@ -52,7 +50,9 @@ namespace HostileNetwork {
             while (true) {
                 data = Console.ReadLine();
                 sendBytes = Encoding.ASCII.GetBytes(DateTime.Now.ToString() + " " + data);
-                client.Send(sendBytes, sendBytes.GetLength(0));
+
+                Utils.sendTo(client, sendBytes);
+                //client.Send(sendBytes, sendBytes.GetLength(0));
                 rcvPacket = client.Receive(ref remoteIPEndPoint);
 
                 string rcvData = Encoding.ASCII.GetString(rcvPacket);
