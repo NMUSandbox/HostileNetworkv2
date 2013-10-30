@@ -4,6 +4,7 @@
         public const int PORT = 58008;
         public const string SEND_ADDRESS_STRING = "127.0.0.1";
         public const int PACKET_SIZE = 512;
+        public const int WINDOW_SIZE = 5;
 
         //These are the first byte locations for each field in the metadata header
         public const int FIELD_TYPE = 0;
@@ -18,5 +19,11 @@
         //just use the same FIELD_CHECKSUM constant. 
         public const int FIELD_PACKET_ID = 0;
         public const int FIELD_PAYLOAD = 4;
+
+        //the values for the "type" field in the metadata packet. 
+        public const byte TYPE_GET_REQUEST = 0x00;  //send to the system you want a specific file from
+        public const byte TYPE_INCOMING = 0x01; // send to a system before you send them the data of a file. Used by client to indicate a push, used by server to prepare client for a pull after the client sent a get request.
+        public const byte TYPE_DIRECTORY_REQUEST = 0x02; // send to a system you want a directory list from 
+        public const byte TYPE_DIRECTORY_DELIVERY = 0x03; // send to a system before you give them a directory listing
     }
 }
