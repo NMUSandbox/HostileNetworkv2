@@ -37,8 +37,8 @@ namespace HostileNetwork {
             
             string data = "";
           
-            byte[] sendBytes = new Byte[1024];
-            byte[] rcvPacket = new Byte[1024];
+            byte[] sendBytes = new Byte[Constants.PACKET_SIZE];
+            byte[] rcvPacket = new Byte[Constants.PACKET_SIZE];
             UdpClient client = new UdpClient();
             IPAddress sendAddress = IPAddress.Parse(Constants.SEND_ADDRESS_STRING);
             client.Connect(sendAddress, Constants.PORT);
@@ -60,9 +60,8 @@ namespace HostileNetwork {
 
                 Console.WriteLine("Message Received: " + rcvData);
             }
-            Console.WriteLine("Close Port Command Sent");  //user feedback
-            Console.ReadLine();
-            client.Close();  //close connection
+
+            //client.Close();  //close connection
         }
 
         static string getValidFileName() {

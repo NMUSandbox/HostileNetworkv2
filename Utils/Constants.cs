@@ -4,6 +4,7 @@
         public const int PORT = 58008;
         public const string SEND_ADDRESS_STRING = "127.0.0.1";
         public const int PACKET_SIZE = 512;
+        public const int MAX_FILENAME_SIZE = 485;
         public const int WINDOW_SIZE = 5;
 
         //These are the first byte locations for each field in the metadata header

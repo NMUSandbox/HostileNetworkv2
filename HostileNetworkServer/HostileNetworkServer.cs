@@ -38,9 +38,7 @@ namespace HostileNetwork {
                 Console.WriteLine("Message Echoed to" + remoteIPEndPoint + data);
             }
 
-            Console.WriteLine("Press Enter Program Finished");
-            Console.ReadLine(); //delay end of program
-            server.Close();  //close the connection
+            //server.Close();  //close the connection
         }
     }
 }

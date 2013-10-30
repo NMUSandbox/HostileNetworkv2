@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using System.Net.Sockets;
+using System.Text;
 
 namespace HostileNetworkUtils {
     public class Utils {
@@ -92,18 +93,19 @@ namespace HostileNetworkUtils {
             return null;
         }
         public static byte[] getfileMetadataPacket(string filename, byte type) {
-            if (filename.Length > 485)
+
+            if (filename.Length > Constants.MAX_FILENAME_SIZE)
             {
                 Console.WriteLine("ERROR: Filename length too big!");
                 return null;
             }
-            byte[] packetOut = new byte[512];
-            for (int i = 0; i < 512; i++) { packetOut[i] = 0; }
+            byte[] packetOut = new byte[Constants.PACKET_SIZE];
+            for (int i = 0; i < Constants.PACKET_SIZE; i++) { packetOut[i] = 0; }
             packetOut[0] = type;
             byte[] filenameLength = BitConverter.GetBytes( filename.Length ) ;
             packetOut[Constants.FIELD_FILENAME_LENGTH] = filenameLength[0];
             packetOut[Constants.FIELD_FILENAME_LENGTH+1] = filenameLength[1];
-            byte[] filenameArray = System.Text.Encoding.Unicode.GetBytes(filename); // This line is apparently the subject of a massive StackOverflow.com flame war... this *should* work, because all strings are held internally by .NET as unicode. 
+            byte[] filenameArray = Encoding.Unicode.GetBytes(filename); // This line is apparently the subject of a massive StackOverflow.com flame war... this *should* work, because all strings are held internally by .NET as unicode. 
             for (int i = 0; i < filenameArray.Length; i++)
             {
                 packetOut[i + Constants.FIELD_FILENAME] = filenameArray[i];
@@ -126,40 +128,6 @@ namespace HostileNetworkUtils {
 
 
 
-            return packetOut;
-        }
-    }
-    class DataPacket
-    {
-        private int myID;
-        private byte[] myPayload;
-        private int timeout;
-        public void DataPacket(int ID, byte[] payload)
-        {
-            myID = ID;
-            myPayload = payload;
-        }
-        int getID() { return myID; }
-        int getTimeout() { return timeout; }
-        byte[] getPacket()
-        {
-            byte[] packetOut = new byte[512];
-            for (int j = 0; j < 512; j++) { packetOut[j] = 0; }
-
-            byte[] IDbytes = BitConverter.GetBytes(myID);
-            for (int i = 0; i < IDbytes.Length; i++)
-            {
-                packetOut[i + Constants.FIELD_PACKET_ID] = IDbytes[i];
-            }
-            for (int i = 0; i < myPayload.Length; i++)
-            {
-                packetOut[i + Constants.FIELD_PAYLOAD] = myPayload[i];
-            }
-            byte[] checksum = Utils.getChecksum(packetOut);
-            for (int j = 0; j > checksum.Length; j--)
-            {
-                packetOut[j+Constants.FIELD_CHECKSUM] = checksum[j];
-            }
             return packetOut;
         }
     }
