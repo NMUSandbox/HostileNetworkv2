@@ -1,22 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.IO;
 using System.Net.Sockets;
-using System.Text;
+using System.Security.Cryptography;
 
 namespace HostileNetworkUtils {
     public class Utils {
 
-        public static bool fileExists(string fileName) {
-
-            return File.Exists(fileName);
-        }//end fileExists
-
-        //takes in a UDP socketpredefined to send to the server
-        //takes a byte array of the packet to be sent
         public static int sendTo(UdpClient client, byte[] packet){
 
             double dropRate = 0.5; // ratio of packets that won't get sent
@@ -27,28 +17,34 @@ namespace HostileNetworkUtils {
 
             Random randomnessGenerator = new Random();  
 
-	        if(randomnessGenerator.NextDouble() < dropRate && packetBuster){
-                if(debugPrints){
+	        if (randomnessGenerator.NextDouble() < dropRate && packetBuster) {
+                if (debugPrints)
 			        Console.WriteLine("Packet dropped.");
-                }
+
                 return -1;
             }
-            if(randomnessGenerator.NextDouble() < corruptionRate && packetBuster){
-                if(debugPrints){
+
+            if (randomnessGenerator.NextDouble() < corruptionRate && packetBuster) {
+                if (debugPrints)
                     Console.WriteLine("Packet corrupted.");
-                }
-                for (int i = 0; i < 5; i++){
+
+                for (int i = 0; i < 5; i++) {
                     packet[randomnessGenerator.Next(packet.GetLength(0))] = (byte)randomnessGenerator.Next(255);
                 }
+
                 client.Send(packet, packet.GetLength(0));
-               return -2;
+                return -2;
             }
+
             client.Send(packet, packet.GetLength(0));
+
             return 1;
         }//end sendTo
-        public void sendFileTo(UdpClient udpTarget, string filename){
 
-            if (!fileExists(filename))
+        public void sendFileTo(UdpClient udpTarget, string filename)
+        {
+
+            if (!File.Exists(filename))
             {
                 Console.WriteLine("FILE NOT FOUND!");
                 return;
@@ -90,45 +86,7 @@ namespace HostileNetworkUtils {
 
         public static byte[] getChecksum(byte[] input)
         {
-            return null;
-        }
-        public static byte[] getfileMetadataPacket(string filename, byte type) {
-
-            if (filename.Length > Constants.MAX_FILENAME_SIZE)
-            {
-                Console.WriteLine("ERROR: Filename length too big!");
-                return null;
-            }
-            byte[] packetOut = new byte[Constants.PACKET_SIZE];
-            for (int i = 0; i < Constants.PACKET_SIZE; i++) { packetOut[i] = 0; }
-            packetOut[0] = type;
-            byte[] filenameLength = BitConverter.GetBytes( filename.Length ) ;
-            packetOut[Constants.FIELD_FILENAME_LENGTH] = filenameLength[0];
-            packetOut[Constants.FIELD_FILENAME_LENGTH+1] = filenameLength[1];
-            byte[] filenameArray = Encoding.Unicode.GetBytes(filename); // This line is apparently the subject of a massive StackOverflow.com flame war... this *should* work, because all strings are held internally by .NET as unicode. 
-            for (int i = 0; i < filenameArray.Length; i++)
-            {
-                packetOut[i + Constants.FIELD_FILENAME] = filenameArray[i];
-            }
-            if (type == Constants.TYPE_GET_REQUEST)
-            {
-                return packetOut;
-            }
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~TO DO:~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            //fill the rest of the metadata packet. 
-
-
-            //open the file, get it's length in bytes
-            //divide the file length by 485. If there's a remainder, add one but disregard decimals.
-            //That resulting numebr is the total number of packets. Turn it into a byte array
-            //Store that array in the packet at location Constants.FIELD_TOTAL
-
-            //convert the file's length to a byte array
-            //store that byte array in the packet at location Constants.FIELD_FILE_LENGTH
-
-
-
-            return packetOut;
+            return MD5.Create().ComputeHash(input);
         }
     }
 }

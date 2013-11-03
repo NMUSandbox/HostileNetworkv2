@@ -41,6 +41,7 @@
   <ItemGroup>
     <Compile Include="Constants.cs" />
     <Compile Include="DataPacket.cs" />
+    <Compile Include="MetadataPacket.cs" />
     <Compile Include="Utils.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
