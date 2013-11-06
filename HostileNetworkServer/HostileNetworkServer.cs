@@ -1,10 +1,10 @@
-﻿using System;
-using System.Text;
-using HostileNetworkUtils;
-using System.Net.Sockets;
-using System.Net;
+﻿using HostileNetworkUtils;
+using System;
 using System.ComponentModel;
 using System.IO;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
 
 namespace HostileNetwork {
     class HostileNetworkServer {
@@ -14,17 +14,35 @@ namespace HostileNetwork {
 
         static void Main() {
 
+            /*
             //create thread + register functions
             BackgroundWorker worker = new BackgroundWorker();
             worker.WorkerReportsProgress = true;
             worker.DoWork += worker_DoWork;
             worker.RunWorkerCompleted += worker_RunWorkerCompleted;
             worker.ProgressChanged += worker_ProgressChanged;
+            
+            worker.RunWorkerAsync(client);
+            */
 
-            UdpClient server = launchServer();
-            worker.RunWorkerAsync(server);
+            byte[] receivedBytes;
+            UdpClient client = launchServer();
 
-            Console.ReadLine();
+            while (true) {
+                receivedBytes = client.Receive(ref remoteIPEndPoint);
+
+                switch (receivedBytes[Constants.FIELD_TYPE]) {
+                    case Constants.TYPE_DIRECTORY_REQUEST:
+                        respondToDirectoryRequest(client);
+                        break;
+                    case Constants.TYPE_FILE_DELIVERY:
+                        break;
+                    case Constants.TYPE_FILE_REQUEST:
+                        break;
+                    default:
+                        break;
+                }
+            }
         }
 
         static void worker_ProgressChanged(object sender, ProgressChangedEventArgs e) {
@@ -39,25 +57,30 @@ namespace HostileNetwork {
 
         static void worker_DoWork(object sender, DoWorkEventArgs e) 
         {
-            UdpClient server = e.Argument as UdpClient;
+            UdpClient client = e.Argument as UdpClient;
             while (true) {
-                byte[] receivedBytes = server.Receive(ref remoteIPEndPoint);
+                byte[] receivedBytes = client.Receive(ref remoteIPEndPoint);
 
                 if (receivedBytes[Constants.FIELD_TYPE] == Constants.TYPE_DIRECTORY_REQUEST) {
 
-                    //make sure to send ack
-                    byte[] directoryRequestAck = new Byte[Constants.PACKET_SIZE];
-                    directoryRequestAck[Constants.FIELD_TYPE] = Constants.TYPE_ACK;
-                    Utils.sendTo(server, directoryRequestAck);
-
-                    //send directory metadata packet to client
-                    MetadataPacket directoryListingMetadataPacket = new DirectoryMetadataPacket(Constants.TYPE_DIRECTORY_DELIVERY);
-                    Utils.sendTo(server, directoryListingMetadataPacket.getBytes);
-
-                    //send directory listing
-                    Utils.sendTo(server, getDirectoryListingPacket());
+                    
                 }
             }
+        }
+
+        static void respondToDirectoryRequest(UdpClient client) {
+
+            //make sure to send ack
+            byte[] directoryRequestAck = new Byte[Constants.PACKET_SIZE];
+            directoryRequestAck[Constants.FIELD_TYPE] = Constants.TYPE_ACK;
+            Utils.sendTo(client, directoryRequestAck);
+
+            //send directory metadata packet to client
+            MetadataPacket directoryListingMetadataPacket = new DirectoryMetadataPacket(Constants.TYPE_DIRECTORY_DELIVERY);
+            Utils.sendTo(client, directoryListingMetadataPacket.getBytes);
+
+            //send directory listing
+            Utils.sendTo(client, getDirectoryListingPacket());
         }
 
         // Returns a packet containing the payload with the directory listing.
@@ -67,7 +90,7 @@ namespace HostileNetwork {
             for (int i = 0; i < Constants.PACKET_SIZE; i++)
                 packetOut[i] = 0;
 
-            packetOut[Constants.FIELD_PACKET_ID] = 0; // will need to loop over if the dir listing is large?
+            packetOut[Constants.FIELD_PACKET_ID] = 0;
 
             byte[] directoryListingBytes = getDirectoryListing();
             for (int i = 0; i < directoryListingBytes.Length; i++) {
@@ -104,7 +127,7 @@ namespace HostileNetwork {
             } catch (PathTooLongException PathEx) {
                 Console.WriteLine(PathEx.Message);
             }
-
+            
             return Encoding.Unicode.GetBytes(directoryListingString);
         }
 

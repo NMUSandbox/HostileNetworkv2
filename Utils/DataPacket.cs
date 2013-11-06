@@ -20,14 +20,13 @@ namespace HostileNetworkUtils {
             return timeout;
         }
 
-        byte[] getPacket() {
+        public byte[] getPacket() {
 
             //declare empty array, initialize all values to 0
             byte[] packetOut = new byte[Constants.PACKET_SIZE];
             for (int i = 0; i < Constants.PACKET_SIZE; i++) { 
                 packetOut[i] = 0; 
             }
-
 
             byte[] IDbytes = BitConverter.GetBytes(myID);
             for (int i = 0; i < IDbytes.Length; i++) {
@@ -45,6 +44,5 @@ namespace HostileNetworkUtils {
 
             return packetOut;
         }
-
     }
 }

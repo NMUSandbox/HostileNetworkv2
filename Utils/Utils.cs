@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Text;
 using System.IO;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -7,7 +6,7 @@ using System.Security.Cryptography;
 namespace HostileNetworkUtils {
     public class Utils {
 
-        public static int sendTo(UdpClient client, byte[] packet){
+        public static int sendTo(UdpClient target, byte[] packet){
 
             double dropRate = 0.5; // ratio of packets that won't get sent
             double corruptionRate = 0.5; // ratio of packets that will be corrupted
@@ -32,20 +31,18 @@ namespace HostileNetworkUtils {
                     packet[randomnessGenerator.Next(packet.GetLength(0))] = (byte)randomnessGenerator.Next(255);
                 }
 
-                client.Send(packet, packet.GetLength(0));
+                target.Send(packet, packet.GetLength(0));
                 return -2;
             }
 
-            client.Send(packet, packet.GetLength(0));
+            target.Send(packet, packet.GetLength(0));
 
             return 1;
         }//end sendTo
 
-        public void sendFileTo(UdpClient udpTarget, string filename)
-        {
+        public void sendFileTo(UdpClient udpTarget, string filename) {
 
-            if (!File.Exists(filename))
-            {
+            if (!File.Exists(filename)) {
                 Console.WriteLine("FILE NOT FOUND!");
                 return;
             }
@@ -77,15 +74,13 @@ namespace HostileNetworkUtils {
  */
 
         //    int windowPosition = 0;
-          //  DataPacket[] window = new DataPacket[Constants.WINDOW_SIZE];
+        //    DataPacket[] window = new DataPacket[Constants.WINDOW_SIZE];
         //    while((window.Count(s => s == null)) > 0) //will run if there are any null positions in the array. 
             
-
-
         }//end sendFileTo
 
-        public static byte[] getChecksum(byte[] input)
-        {
+        public static byte[] getChecksum(byte[] input) {
+
             return MD5.Create().ComputeHash(input);
         }
     }

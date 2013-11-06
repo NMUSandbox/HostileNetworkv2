@@ -1,5 +1,6 @@
 ﻿using System;
-using System.Text;
+using System.Diagnostics;
+
 namespace HostileNetworkUtils {
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~TO DO:~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -17,8 +18,13 @@ namespace HostileNetworkUtils {
     public class MetadataPacket {
 
         protected byte packetType;
-        private byte[] bytes;
 
+        private Stopwatch timer;
+        public Stopwatch getTimer {
+            get { return timer; }
+            set { timer = value; }
+        }
+        private byte[] bytes;
         public byte[] getBytes {
             get { return bytes; }
             set { bytes = value; }
@@ -38,8 +44,12 @@ namespace HostileNetworkUtils {
 
     public class DirectoryMetadataPacket : MetadataPacket {
 
+        byte[] totalPackets,
+            directoryLength;
+
         public DirectoryMetadataPacket(byte type) {
 
+            this.getTimer = new Stopwatch();
             packetType = type;
             getBytes = makeEmptyPacketWithType(packetType);
         }
@@ -56,6 +66,7 @@ namespace HostileNetworkUtils {
         public FileMetadataPacket(byte type, byte[] totalPackets, byte[] fileLength,
             byte[] fileNameLength, byte[] fileName, byte[] checksum) {
 
+            this.getTimer = new Stopwatch();
             packetType = type;
             this.totalPackets = totalPackets;
             this.fileLength = fileLength;

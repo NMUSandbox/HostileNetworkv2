@@ -39,6 +39,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AckPacket.cs" />
     <Compile Include="Constants.cs" />
     <Compile Include="DataPacket.cs" />
     <Compile Include="MetadataPacket.cs" />

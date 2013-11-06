@@ -14,7 +14,7 @@
 
         //These are the first byte locations for each field in the metadata header
         public const int FIELD_TYPE = 0;
-        public const int FIELD_TOTAL = 1;
+        public const int FIELD_TOTAL_PACKETS = 1;
         public const int FIELD_FILE_LENGTH = 5;
         public const int FIELD_FILENAME_LENGTH = 9;
         public const int FIELD_FILENAME = 11;
