@@ -12,16 +12,18 @@
         public const int ACK_TIMEOUT_MILLISECONDS = 1000;
 
 
-        //These are the first byte locations for each field in the metadata header
+        //These are the first byte locations for each field in the file metadata header
         public const int FIELD_TYPE = 0;
         public const int FIELD_TOTAL_PACKETS = 1;
         public const int FIELD_FILE_LENGTH = 5;
         public const int FIELD_FILENAME_LENGTH = 9;
-        public const int FIELD_FILENAME = 11;
-        public const int FIELD_CHECKSUM = 496;
+        public const int FIELD_FILENAME = 13;
+        public const int FIELD_CHECKSUM = 479; //MD5.Create().ComputeHash(input) returns 32 bytes, 511-32=479
 
-        //These are the first byte locations for the Data packet header fields.
-        //The Checksum field is the same for each packet type (496)
+        public const int FIELD_DIRECTORY_LENGTH = 5;
+
+        //These are the first byte locations for the file data packet header fields.
+        //The Checksum field is the same for each packet type (479)
         //just use the same FIELD_CHECKSUM constant. 
         public const int FIELD_PACKET_ID = 0;
         public const int FIELD_PAYLOAD = 4;

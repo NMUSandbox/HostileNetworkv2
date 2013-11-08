@@ -26,14 +26,14 @@ namespace HostileNetwork {
             */
 
             byte[] receivedBytes;
-            UdpClient client = launchServer();
+            UdpClient client = LaunchServer();
 
             while (true) {
                 receivedBytes = client.Receive(ref remoteIPEndPoint);
 
                 switch (receivedBytes[Constants.FIELD_TYPE]) {
                     case Constants.TYPE_DIRECTORY_REQUEST:
-                        respondToDirectoryRequest(client);
+                        RespondToDirectoryRequest(client);
                         break;
                     case Constants.TYPE_FILE_DELIVERY:
                         break;
@@ -62,29 +62,31 @@ namespace HostileNetwork {
                 byte[] receivedBytes = client.Receive(ref remoteIPEndPoint);
 
                 if (receivedBytes[Constants.FIELD_TYPE] == Constants.TYPE_DIRECTORY_REQUEST) {
-
+                    
                     
                 }
             }
         }
 
-        static void respondToDirectoryRequest(UdpClient client) {
+        static void RespondToDirectoryRequest(UdpClient client) {
 
             //make sure to send ack
             byte[] directoryRequestAck = new Byte[Constants.PACKET_SIZE];
             directoryRequestAck[Constants.FIELD_TYPE] = Constants.TYPE_ACK;
-            Utils.sendTo(client, directoryRequestAck);
+            Utils.SendTo(client, directoryRequestAck);
 
+
+            //***********Need some extra work here to get info for packet constructor
             //send directory metadata packet to client
-            MetadataPacket directoryListingMetadataPacket = new DirectoryMetadataPacket(Constants.TYPE_DIRECTORY_DELIVERY);
-            Utils.sendTo(client, directoryListingMetadataPacket.getBytes);
-
+            DirectoryMetadataPacket directoryMetadataPacket = new DirectoryMetadataPacket(Constants.TYPE_DIRECTORY_DELIVERY, null,0);
+           
+            Utils.SendTo(client, directoryMetadataPacket.MyPacketAsBytes);
             //send directory listing
-            Utils.sendTo(client, getDirectoryListingPacket());
+            Utils.SendTo(client, GetDirectoryListingPacket());
         }
 
         // Returns a packet containing the payload with the directory listing.
-        static byte[] getDirectoryListingPacket() {
+        static byte[] GetDirectoryListingPacket() {
 
             byte[] packetOut = new Byte[Constants.PACKET_SIZE];
             for (int i = 0; i < Constants.PACKET_SIZE; i++)
@@ -92,12 +94,12 @@ namespace HostileNetwork {
 
             packetOut[Constants.FIELD_PACKET_ID] = 0;
 
-            byte[] directoryListingBytes = getDirectoryListing();
+            byte[] directoryListingBytes = GetDirectoryListing();
             for (int i = 0; i < directoryListingBytes.Length; i++) {
                 packetOut[Constants.FIELD_PAYLOAD + i] = directoryListingBytes[i];
             }
 
-            byte[] checksum = Utils.getChecksum(directoryListingBytes);
+            byte[] checksum = Utils.GetChecksum(directoryListingBytes);
             for (int i = 0; i < checksum.Length; i++) {
                 packetOut[Constants.FIELD_CHECKSUM + i] = checksum[i];
             }
@@ -105,7 +107,7 @@ namespace HostileNetwork {
             return packetOut;
         }
 
-        static byte[] getDirectoryListing() {
+        static byte[] GetDirectoryListing() {
 
             string directoryListingString = "";
             
@@ -131,7 +133,7 @@ namespace HostileNetwork {
             return Encoding.Unicode.GetBytes(directoryListingString);
         }
 
-        private static UdpClient launchServer() {
+        private static UdpClient LaunchServer() {
         
             UdpClient client = new UdpClient(Constants.SERVER_PORT);
             sendAddress = IPAddress.Parse(Constants.SEND_ADDRESS_STRING);

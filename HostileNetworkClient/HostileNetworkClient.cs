@@ -27,7 +27,7 @@ namespace HostileNetwork {
             worker.RunWorkerAsync(server);
             */
 
-            UdpClient server = launchClient();
+            UdpClient server = LaunchClient();
             string fileName = "";
             string command;
 
@@ -37,13 +37,13 @@ namespace HostileNetwork {
             
                 switch (command) {
                     case "send":
-                        fileName = getValidFileName();
+                        fileName = GetValidFileName();
                         break;
                     case "get":
                         break;
                     case "dir":
                         Console.WriteLine("Requesting directory listing from server...");
-                        handleDirectoryRequest(server);
+                        HandleDirectoryRequest(server);
                         break;
                     default:
                         break;
@@ -81,20 +81,20 @@ namespace HostileNetwork {
             }
         }
 
-        static void handleDirectoryRequest(UdpClient server) {
+        static void HandleDirectoryRequest(UdpClient server) {
 
-            if(!sendDirectoryRequest(server)) {
+            if(!SendDirectoryRequest(server)) {
                 Console.WriteLine("Failed to send directory request!");
                 return;
             }
 
-            if (!receiveDirectory(server)) {
+            if (!ReceiveDirectory(server)) {
                 Console.WriteLine("Failed to receive directory!");
                 return;
             }
         }
 
-        static bool receiveDirectory(UdpClient server) {
+        static bool ReceiveDirectory(UdpClient server) {
 
             byte[] directoryMetadata = server.Receive(ref remoteIPEndPoint);
             if (directoryMetadata[Constants.FIELD_TYPE] == Constants.TYPE_DIRECTORY_DELIVERY) {
@@ -130,23 +130,25 @@ namespace HostileNetwork {
             return false;
         }
 
-        static bool sendDirectoryRequest(UdpClient server) {
+        static bool SendDirectoryRequest(UdpClient server) {
 
-            MetadataPacket packet = new DirectoryMetadataPacket(Constants.TYPE_DIRECTORY_REQUEST);
-            Utils.sendTo(server, packet.getBytes);
+
+            //************Need some more work here to get info for packet constructor
+            DirectoryMetadataPacket directoryRequestPacket = new DirectoryMetadataPacket(Constants.TYPE_DIRECTORY_REQUEST, null, 0);
+            Utils.SendTo(server, directoryRequestPacket.MyPacketAsBytes);
 
             Stopwatch operationTimer = new Stopwatch();
-            packet.getTimer.Start();
             operationTimer.Start();
+            directoryRequestPacket.MyTimer.Start();
             
 
             while (operationTimer.ElapsedMilliseconds < Constants.OP_TIMEOUT_SECONDS*1000) {
 
                 byte[] receivedBytes = server.Receive(ref remoteIPEndPoint);
 
-                if (packet.getTimer.ElapsedMilliseconds > Constants.ACK_TIMEOUT_MILLISECONDS) {
-                    Utils.sendTo(server, packet.getBytes);
-                    packet.getTimer.Restart();
+                if (directoryRequestPacket.MyTimer.ElapsedMilliseconds > Constants.ACK_TIMEOUT_MILLISECONDS) {
+                    Utils.SendTo(server, directoryRequestPacket.MyPacketAsBytes);
+                    directoryRequestPacket.MyTimer.Restart();
                 }
 
                 if (receivedBytes[Constants.FIELD_TYPE] == Constants.TYPE_ACK) {
@@ -158,7 +160,7 @@ namespace HostileNetwork {
             return false;
         }
 
-        private static UdpClient launchClient() {
+        private static UdpClient LaunchClient() {
 
             UdpClient server = new UdpClient(Constants.CLIENT_PORT);
             sendAddress = IPAddress.Parse(Constants.SEND_ADDRESS_STRING);
@@ -182,7 +184,7 @@ namespace HostileNetwork {
             //}
         }
 
-        static string getValidFileName() {
+        static string GetValidFileName() {
 
             Console.Write("Please enter a filepath\\filename: ");
             string fileName = Console.ReadLine();

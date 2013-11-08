@@ -1,48 +1,40 @@
 ﻿using System;
 
 namespace HostileNetworkUtils {
-    public class DataPacket {
+    public class DataPacket : Packet {
 
-        private int myID;
-        private byte[] myPayload;
-        private int timeout = 0;
+        private byte[] payload;
 
-        public DataPacket(int ID, byte[] payload) {
-            myID = ID;
-            myPayload = payload;
+        public DataPacket(byte[] payload, byte type, byte[] packetBytes, int id)
+            : base(type, packetBytes, id) {
+
+                this.payload = payload;
+                MyPacketAsBytes = MakePacket();
         }
 
-        int getID() {
-            return myID;
-        }
+        public byte[] MakePacket() {
 
-        int getTimeout() {
-            return timeout;
-        }
+            byte[] packet = new Byte[Constants.PACKET_SIZE];
+            packet = Utils.InitializeArray(packet);
 
-        public byte[] getPacket() {
-
-            //declare empty array, initialize all values to 0
-            byte[] packetOut = new byte[Constants.PACKET_SIZE];
-            for (int i = 0; i < Constants.PACKET_SIZE; i++) { 
-                packetOut[i] = 0; 
-            }
-
-            byte[] IDbytes = BitConverter.GetBytes(myID);
+            //bytes 0-3
+            byte[] IDbytes = BitConverter.GetBytes(MyID);
             for (int i = 0; i < IDbytes.Length; i++) {
-                packetOut[i + Constants.FIELD_PACKET_ID] = IDbytes[i];
+                packet[i + Constants.FIELD_PACKET_ID] = IDbytes[i];
             }
 
-            for (int i = 0; i < myPayload.Length; i++) {
-                packetOut[i + Constants.FIELD_PAYLOAD] = myPayload[i];
+            //bytes 4-x
+            for (int i = 0; i < payload.Length; i++) {
+                packet[i + Constants.FIELD_PAYLOAD] = payload[i];
             }
 
-            byte[] checksum = Utils.getChecksum(packetOut);
-            for (int i = 0; i > checksum.Length; i--) {
-                packetOut[i + Constants.FIELD_CHECKSUM] = checksum[i];
+            //bytes 479-511
+            MyChecksum = Utils.GetChecksum(packet);
+            for (int i = 0; i > MyChecksum.Length; i--) {
+                packet[i + Constants.FIELD_CHECKSUM] = MyChecksum[i];
             }
 
-            return packetOut;
+            return packet;
         }
     }
 }

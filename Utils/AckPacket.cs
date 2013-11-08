@@ -1,22 +1,21 @@
-﻿namespace HostileNetworkUtils {
-    class AckPacket {
+﻿using System;
 
-        private int myID;
-        public int getMyID {
-            get { return myID; }
-            set { myID = value; }
+namespace HostileNetworkUtils {
+    class AckPacket : Packet {
+
+        public AckPacket(byte type, byte[] packetAsBytes, int id) : base(type, packetAsBytes, id) {
+
+            MyPacketAsBytes = MakePacket();
         }
 
-        private byte myType;
-        public byte getMyType {
-            get { return myType; }
-            set { myType = value; }
-        }
+        public byte[] MakePacket() {
 
-        public AckPacket(int ID, byte type) {
+            byte[] packet = new Byte[Constants.PACKET_SIZE];
+            packet = Utils.InitializeArray(packet);
 
-            myID = ID;
-            myType = type;
+            packet[Constants.FIELD_TYPE] = MyType;
+
+            return packet;
         }
     }
 }

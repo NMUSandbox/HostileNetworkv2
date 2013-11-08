@@ -41,8 +41,10 @@
   <ItemGroup>
     <Compile Include="AckPacket.cs" />
     <Compile Include="Constants.cs" />
+    <Compile Include="DirectoryMetadataPacket.cs" />
     <Compile Include="DataPacket.cs" />
-    <Compile Include="MetadataPacket.cs" />
+    <Compile Include="FileMetadataPacket.cs" />
+    <Compile Include="Packet.cs" />
     <Compile Include="Utils.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
