@@ -5,16 +5,24 @@ namespace HostileNetworkUtils {
 
         private int directoryLength;
 
-        private byte[] myTotalPackets;
-        public byte[] MyTotalPackets {
+        private int myTotalPackets;
+        public int MyTotalPackets {
             get { return myTotalPackets; }
             set { myTotalPackets = value; }
         }
 
-        public DirectoryMetadataPacket(byte type, byte[] totalPackets, int directoryLength, int id = -1) 
-            : base(type, totalPackets, id) {
+        public DirectoryMetadataPacket(byte type, int totalPackets, int directoryLength, int id = -1)
+            : base(type, id) {
 
             this.directoryLength = directoryLength;
+            myTotalPackets = totalPackets;
+
+            MyPacketAsBytes = MakePacket();
+        }
+
+        public DirectoryMetadataPacket(byte type)
+            : base(type) {
+
             MyPacketAsBytes = MakePacket();
         }
 
@@ -26,15 +34,19 @@ namespace HostileNetworkUtils {
             //byte 0
             packet[Constants.FIELD_TYPE] = MyType;
 
-            //bytes 1-4
-            for (int i = 0; i < MyTotalPackets.Length; i++) {
-                packet[Constants.FIELD_TOTAL_PACKETS + i] = MyTotalPackets[i];
-            }
+            if (MyType == Constants.TYPE_DIRECTORY_DELIVERY) {
 
-            //bytes 5-9
-            byte[] directoryLengthArray = BitConverter.GetBytes(directoryLength);
-            for (int i = 0; i < directoryLength; i++) {
-                packet[Constants.FIELD_DIRECTORY_LENGTH + i] = directoryLengthArray[i];
+                //bytes 1-4
+                byte[] totalPacketsLengthArray = BitConverter.GetBytes(MyTotalPackets);
+                for (int i = 0; i < totalPacketsLengthArray.Length; i++) {
+                    packet[Constants.FIELD_TOTAL_PACKETS + i] = totalPacketsLengthArray[i];
+                }
+
+                //bytes 5-9
+                byte[] directoryLengthArray = BitConverter.GetBytes(directoryLength);
+                for (int i = 0; i < directoryLengthArray.Length; i++) {
+                    packet[Constants.FIELD_DIRECTORY_LENGTH + i] = directoryLengthArray[i];
+                }
             }
 
             //bytes 479-511

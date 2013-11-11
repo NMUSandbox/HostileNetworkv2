@@ -44,6 +44,17 @@ namespace HostileNetworkUtils {
             set { myPacketAsBytes = value; }
         }
 
+        public Packet(byte type) {
+
+            myType = type;
+        }
+
+        public Packet(byte type, int id) {
+
+            myType = type;
+            myID = id;
+        }
+
         public Packet(byte type, byte[] packetBytes, int id = -1) {
 
             myType = type;

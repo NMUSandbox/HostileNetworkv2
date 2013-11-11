@@ -1,9 +1,9 @@
 ﻿using System;
 
 namespace HostileNetworkUtils {
-    class AckPacket : Packet {
+    public class AckPacket : Packet {
 
-        public AckPacket(byte type, byte[] packetAsBytes, int id) : base(type, packetAsBytes, id) {
+        public AckPacket(byte type, int id) : base(type, id) {
 
             MyPacketAsBytes = MakePacket();
         }
@@ -14,6 +14,11 @@ namespace HostileNetworkUtils {
             packet = Utils.InitializeArray(packet);
 
             packet[Constants.FIELD_TYPE] = MyType;
+
+            byte[] IDbytes = BitConverter.GetBytes(MyID);
+            for (int i = 0; i < IDbytes.Length; i++) {
+                packet[i + Constants.FIELD_ACK_ID] = IDbytes[i];
+            }
 
             return packet;
         }

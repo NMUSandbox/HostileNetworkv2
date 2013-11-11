@@ -1,39 +1,58 @@
 ﻿using HostileNetworkUtils;
 using System;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 
 namespace HostileNetwork {
-    class HostileNetworkServer {
+    public class HostileNetworkServer {
 
-        static IPAddress sendAddress;
-        static IPEndPoint remoteIPEndPoint;
+        //private static BackgroundWorker worker;
+        private static IPAddress sendAddress;
+        private static IPEndPoint remoteIPEndPoint;
+        private static volatile bool packetReceived = false;
+        private static byte[] receivedPacketBytes = new Byte[Constants.PACKET_SIZE];
 
-        static void Main() {
+        private static void Main() {
 
             /*
             //create thread + register functions
-            BackgroundWorker worker = new BackgroundWorker();
             worker.WorkerReportsProgress = true;
             worker.DoWork += worker_DoWork;
             worker.RunWorkerCompleted += worker_RunWorkerCompleted;
             worker.ProgressChanged += worker_ProgressChanged;
             
             worker.RunWorkerAsync(client);
-            */
+             * */
+            
 
             byte[] receivedBytes;
-            UdpClient client = LaunchServer();
+            UdpClient client = GetConnectedClientObject();
 
             while (true) {
                 receivedBytes = client.Receive(ref remoteIPEndPoint);
 
+                if (!Utils.VerifyChecksum(receivedBytes))
+                    continue;
+
                 switch (receivedBytes[Constants.FIELD_TYPE]) {
                     case Constants.TYPE_DIRECTORY_REQUEST:
-                        RespondToDirectoryRequest(client);
+
+                        Console.WriteLine("Received directory request");
+
+                        if (SendDirectoryMetadataPacket(client))
+                            Console.WriteLine("Directory request sent successfully.");
+                        else
+                            Console.WriteLine("Failed to deliver directory request.");
+
+                        if (SendDirectoryPackets(client))
+                            Console.WriteLine("Directory sent successfully.");
+                        else
+                            Console.WriteLine("Failed to deliver directory.");
                         break;
                     case Constants.TYPE_FILE_DELIVERY:
                         break;
@@ -45,95 +64,102 @@ namespace HostileNetwork {
             }
         }
 
-        static void worker_ProgressChanged(object sender, ProgressChangedEventArgs e) {
+        private static void worker_ProgressChanged(object sender, ProgressChangedEventArgs e) {
 
             Console.WriteLine("progress changed: " + e.UserState);
         }
 
-        static void worker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e) {
+        private static void worker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e) {
 
             Console.WriteLine("all done");
         }
 
-        static void worker_DoWork(object sender, DoWorkEventArgs e) 
-        {
-            UdpClient client = e.Argument as UdpClient;
-            while (true) {
-                byte[] receivedBytes = client.Receive(ref remoteIPEndPoint);
+        private static void worker_DoWork(object sender, DoWorkEventArgs e) {
 
-                if (receivedBytes[Constants.FIELD_TYPE] == Constants.TYPE_DIRECTORY_REQUEST) {
-                    
-                    
-                }
-            }
+            UdpClient client = e.Argument as UdpClient;
         }
 
-        static void RespondToDirectoryRequest(UdpClient client) {
+        private static bool SendDirectoryMetadataPacket(UdpClient client) {
 
             //make sure to send ack
-            byte[] directoryRequestAck = new Byte[Constants.PACKET_SIZE];
-            directoryRequestAck[Constants.FIELD_TYPE] = Constants.TYPE_ACK;
-            Utils.SendTo(client, directoryRequestAck);
+            AckPacket directoryRequestAckPacket = new AckPacket(Constants.TYPE_ACK,0);
+            Utils.SendTo(client, directoryRequestAckPacket.MyPacketAsBytes);
 
+            byte[] directoryListing = Utils.GetDirectoryListing();
+            int totalPackets = Utils.GetDirectoryPacketsTotal();
+            DirectoryMetadataPacket directoryMetadataPacket = new
+                DirectoryMetadataPacket(Constants.TYPE_DIRECTORY_DELIVERY, totalPackets, directoryListing.Length);
 
-            //***********Need some extra work here to get info for packet constructor
-            //send directory metadata packet to client
-            DirectoryMetadataPacket directoryMetadataPacket = new DirectoryMetadataPacket(Constants.TYPE_DIRECTORY_DELIVERY, null,0);
-           
             Utils.SendTo(client, directoryMetadataPacket.MyPacketAsBytes);
-            //send directory listing
-            Utils.SendTo(client, GetDirectoryListingPacket());
-        }
+            Console.WriteLine("Sent directory metadata packet");
 
-        // Returns a packet containing the payload with the directory listing.
-        static byte[] GetDirectoryListingPacket() {
+            Stopwatch operationTimer = new Stopwatch();
+            operationTimer.Start();
+            directoryMetadataPacket.MyTimer.Start();
 
-            byte[] packetOut = new Byte[Constants.PACKET_SIZE];
-            for (int i = 0; i < Constants.PACKET_SIZE; i++)
-                packetOut[i] = 0;
-
-            packetOut[Constants.FIELD_PACKET_ID] = 0;
-
-            byte[] directoryListingBytes = GetDirectoryListing();
-            for (int i = 0; i < directoryListingBytes.Length; i++) {
-                packetOut[Constants.FIELD_PAYLOAD + i] = directoryListingBytes[i];
-            }
-
-            byte[] checksum = Utils.GetChecksum(directoryListingBytes);
-            for (int i = 0; i < checksum.Length; i++) {
-                packetOut[Constants.FIELD_CHECKSUM + i] = checksum[i];
-            }
-            
-            return packetOut;
-        }
-
-        static byte[] GetDirectoryListing() {
-
-            string directoryListingString = "";
-            
             try {
-
-                DirectoryInfo dirInfo = new DirectoryInfo(Directory.GetCurrentDirectory());
-
-                DirectoryInfo[] dirInfos = dirInfo.GetDirectories("*.*");
-                foreach (DirectoryInfo d in dirInfos) {
-                    directoryListingString += d.Name + Environment.NewLine;
-                }
-
-                FileInfo[] fileNames = dirInfo.GetFiles("*.*");
-                foreach (FileInfo fi in fileNames) {
-                    directoryListingString += fi.Name + Environment.NewLine;
-                }
-            } catch (UnauthorizedAccessException UAEx) {
-                Console.WriteLine(UAEx.Message);
-            } catch (PathTooLongException PathEx) {
-                Console.WriteLine(PathEx.Message);
+                client.BeginReceive(new AsyncCallback(ReceivePingPongCallback), client);
             }
-            
-            return Encoding.Unicode.GetBytes(directoryListingString);
+            catch (Exception e) {
+                Console.WriteLine(e.Message);
+            }
+
+            while (operationTimer.ElapsedMilliseconds < Constants.OP_TIMEOUT_SECONDS * 1000) {
+
+                if (packetReceived) {
+
+                    packetReceived = false;
+
+                    Console.WriteLine("directory metadata ack received");
+                    if (!Utils.VerifyChecksum(receivedPacketBytes))
+                        continue;
+
+                    Console.WriteLine("VALID directory metadata ack received");
+                    return true;
+                }
+
+                if (directoryMetadataPacket.MyTimer.ElapsedMilliseconds > Constants.ACK_TIMEOUT_MILLISECONDS) {
+                    Utils.SendTo(client, directoryMetadataPacket.MyPacketAsBytes);
+                    directoryMetadataPacket.MyTimer.Restart();
+                }
+            }
+
+            Console.WriteLine("Operation timeout: error code #" + new Random().Next(9999));
+            return false;
         }
 
-        private static UdpClient LaunchServer() {
+        private static bool SendDirectoryPackets(UdpClient client) {
+
+            byte[] directoryListing = Utils.GetDirectoryListing();
+
+            int totalPackets = Utils.GetDirectoryPacketsTotal();
+            int payloadSize = Constants.PACKET_SIZE - 20;
+            byte[] payload = new Byte[payloadSize];
+
+            int byteIndex = 0;
+            for (int i = 0; i < totalPackets; i++) {
+
+                for (int j = 0; j < directoryListing.Length; j++) {
+                    payload[j] = directoryListing[byteIndex++];
+                }
+            }
+
+            return false;
+        }
+
+        private static void ReceivePingPongCallback(IAsyncResult res) {
+
+            UdpClient client = res.AsyncState as UdpClient;
+
+            byte[] received = client.EndReceive(res, ref remoteIPEndPoint);
+
+            if (Utils.VerifyChecksum(received)) {
+                receivedPacketBytes = received;
+                packetReceived = true;
+            }
+        }
+
+        private static UdpClient GetConnectedClientObject() {
         
             UdpClient client = new UdpClient(Constants.SERVER_PORT);
             sendAddress = IPAddress.Parse(Constants.SEND_ADDRESS_STRING);

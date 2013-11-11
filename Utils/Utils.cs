@@ -9,6 +9,48 @@ using System.Collections.Generic;
 namespace HostileNetworkUtils {
     public class Utils {
 
+        public static int GetDirectoryPacketsTotal() {
+
+            int totalPackets = 0;
+            byte[] directoryListingByteArray = GetDirectoryListing();
+
+            totalPackets = directoryListingByteArray.Length / (Constants.PACKET_SIZE - 36); //4 bytes for id, 32 for checksum
+
+            //if there's any remainder, we need one extra packet
+            if (directoryListingByteArray.Length % (Constants.PACKET_SIZE - 36) != 0 || totalPackets < 1)
+                totalPackets++;
+
+            return totalPackets;
+        }
+
+        public static byte[] GetDirectoryListing() {
+
+            string directoryListingString = "";
+
+            try {
+
+                DirectoryInfo dirInfo = new DirectoryInfo(Directory.GetCurrentDirectory());
+
+                DirectoryInfo[] dirInfos = dirInfo.GetDirectories("*.*");
+                foreach (DirectoryInfo d in dirInfos) {
+                    directoryListingString += d.Name + Environment.NewLine;
+                }
+
+                FileInfo[] fileNames = dirInfo.GetFiles("*.*");
+                foreach (FileInfo fi in fileNames) {
+                    directoryListingString += fi.Name + Environment.NewLine;
+                }
+            }
+            catch (UnauthorizedAccessException UAEx) {
+                Console.WriteLine(UAEx.Message);
+            }
+            catch (PathTooLongException PathEx) {
+                Console.WriteLine(PathEx.Message);
+            }
+
+            return Encoding.Unicode.GetBytes(directoryListingString);
+        }
+
         public static byte[] InitializeArray(byte[] arr) {
 
             for (int i = 0; i < arr.Length; i++) {
@@ -20,6 +62,33 @@ namespace HostileNetworkUtils {
         public static byte[] GetChecksum(byte[] input) {
 
             return MD5.Create().ComputeHash(input);
+        }
+
+        public static bool VerifyChecksum(byte[] received) {
+
+            byte[] inputChecksum = new Byte[16];
+            for (int i = 0; i < inputChecksum.Length; i++) {
+                inputChecksum[i] = received[i + received.Length - 17];
+                received[i + received.Length - 17] = 0;
+            }
+
+            byte[] actualChecksum = Utils.GetChecksum(received);
+
+            if (inputChecksum.Length != actualChecksum.Length)
+                return false;
+
+            for (int i = 0; i < inputChecksum.Length; i++)
+                if (inputChecksum[i] != actualChecksum[i])
+                    return false;
+
+            return true;
+        }
+
+        public static long GetFileSizeInBytes(string fileName) {
+
+            FileInfo fileInfo = new FileInfo(fileName);
+
+            return fileInfo.Length;
         }
 
         public static int SendTo(UdpClient target, byte[] packet){
@@ -87,13 +156,8 @@ namespace HostileNetworkUtils {
             IPEndPoint remoteIPEndPoint = null;
             while (currentWorkingPacket < packetTotal){
                 byte[] receivedBytes = udpSource.Receive(ref remoteIPEndPoint); //start with a new packet
-                byte[] receivedChecksumHash = new byte[32];
-                for (int i = 0; i < 32; i++) { 
-                    receivedChecksumHash[i] = receivedBytes[i + Constants.FIELD_CHECKSUM];
-                    receivedBytes[i + Constants.FIELD_CHECKSUM] = 0;
-                }
 
-                if (CompareHash(receivedBytes, receivedChecksumHash)) { //valid checksum
+                if (VerifyChecksum(receivedBytes)) { //valid checksum
                     byte[] payloadUnpacker = new byte[Constants.PAYLOAD_SIZE];
                     for (int i = 0; i < Constants.PAYLOAD_SIZE; i++) { 
                         payloadUnpacker[i] = receivedBytes[i + Constants.FIELD_PAYLOAD];
@@ -101,7 +165,7 @@ namespace HostileNetworkUtils {
                     dataPacketBuffer receivedPacket = new dataPacketBuffer(BitConverter.ToInt32(receivedBytes, Constants.FIELD_PACKET_ID), payloadUnpacker);
 
                     if (receivedPacket.getID() < currentWorkingPacket) {
-                        AckPacket respond = new AckPacket(Constants.TYPE_ACK, null, receivedPacket.getID());
+                        AckPacket respond = new AckPacket(Constants.TYPE_ACK, receivedPacket.getID());
                         SendTo(udpSource, respond.MakePacket());
                         //return an ack
                     }
@@ -129,7 +193,8 @@ namespace HostileNetworkUtils {
                 }
             }
         }
-        struct dataPacketBuffer{
+
+        struct dataPacketBuffer {
                 private int ID;
                 private byte[] payload;
                 public dataPacketBuffer(int inID, byte[] inPayload) { 
@@ -141,15 +206,8 @@ namespace HostileNetworkUtils {
                 public void setID(int newID) { ID = newID; }
                 public int getID() { return ID; }
         };
-        public static bool CompareHash(byte[] dataToBeHashed, byte[] comparisonHash){
-            byte[] computedHash = GetChecksum(dataToBeHashed);
-            for (int i = 0; i < comparisonHash.Length; i++){
-                if (computedHash[i] != comparisonHash[i]) return false;
-            }
-            return true;
-        }
-        public static void SendFileTo(UdpClient udpTarget, string filename)
-        {
+
+        public static void SendFileTo(UdpClient udpTarget, string filename) {
 
             if (!File.Exists(filename)) {
                 Console.WriteLine("FILE NOT FOUND!");
