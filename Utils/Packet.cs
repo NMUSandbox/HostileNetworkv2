@@ -4,7 +4,7 @@ namespace HostileNetworkUtils {
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~TO DO:~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     //open the file, get it's length in bytes
-    //divide the file length by 485. If there's a remainder, add one but disregard decimals.
+    //divide the file length by Constants.PAYLOAD_SIZE. If there's a remainder, add one but disregard decimals.
     //That resulting numebr is the total number of packets. Turn it into a byte array
     //Store that array in the packet at location Constants.FIELD_TOTAL
 
