@@ -5,33 +5,42 @@ using System.Text;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace HostileNetworkUtils {
     class PingPong {
 
         //send some packet over and over until you get a valid ACK
-        //doesn't currently check for valid checksum. Should work on that. 
+        //handles timeouts, handles a lack of replies. 
+        //looks ugly as sin
         //also fuck you, give me access to Packet's ID param. :P
         public static void sendUntilAck(Packet sendingPacket, UdpClient target){
-            bool ackReceived = false;
             IPEndPoint remoteTarget = null;
-            while (!ackReceived){
+            bool sent = false;
+            Stopwatch timeout = new Stopwatch();
+            while (!sent){
                 Utils.SendTo(target, sendingPacket.MyPacketAsBytes);
-                byte[] receivedBytes = target.Receive(ref remoteTarget);
-                //confirm checksum, if invalid continue;
-                if (Utils.VerifyChecksum(sendingPacket.MyPacketAsBytes))
+                timeout.Restart();
+                while (timeout.ElapsedMilliseconds < Constants.ACK_TIMEOUT_MILLISECONDS)
                 {
-                    if (receivedBytes[Constants.FIELD_TYPE] == Constants.TYPE_ACK)
+                    if (target.Available != 0)
                     {
-                        bool idsEqual = true;
-                        for (int i = 0; i < 4; i++)
+                        byte[] receivedBytes = target.Receive(ref remoteTarget);
+                        if (Utils.VerifyChecksum(sendingPacket.MyPacketAsBytes))
                         {
-                            if (receivedBytes[Constants.FIELD_PACKET_ID + i] != sendingPacket.MyPacketAsBytes[Constants.FIELD_PACKET_ID + i])
+                            if (receivedBytes[Constants.FIELD_TYPE] == Constants.TYPE_ACK)
                             {
-                                idsEqual = false;
+                                bool idsEqual = true;
+                                for (int i = 0; i < 4; i++)
+                                {
+                                    if (receivedBytes[Constants.FIELD_PACKET_ID + i] != sendingPacket.MyPacketAsBytes[Constants.FIELD_PACKET_ID + i])
+                                    { // this is steves fault, I know it
+                                        idsEqual = false;
+                                    }
+                                }
+                                if (idsEqual) { sent = true; }
                             }
                         }
-                        if (idsEqual) { break; }
                     }
                 }
             }
