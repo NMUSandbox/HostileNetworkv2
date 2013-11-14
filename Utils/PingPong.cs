@@ -27,8 +27,19 @@ namespace HostileNetworkUtils {
             IPEndPoint remoteTarget = null;
             bool sent = false;
             Stopwatch timeout = new Stopwatch();
-            while (!sent){
-                Utils.SendTo(target, sendingPacket.MyPacketAsBytes);
+            byte[] backup = new byte[Constants.PACKET_SIZE];
+            for (int i = 0; i < Constants.PACKET_SIZE; i++)
+            {
+                backup[i] = sendingPacket.MyPacketAsBytes[i];
+            }
+
+            while (!sent)
+            {
+                for (int i = 0; i < Constants.PACKET_SIZE; i++)
+                {
+                    backup[i] = sendingPacket.MyPacketAsBytes[i];
+                }
+                Utils.SendTo(target, backup);
                 timeout.Restart();
                 while (timeout.ElapsedMilliseconds < Constants.PACKET_TIMEOUT_MILLISECONDS)
                 {
@@ -50,7 +61,7 @@ namespace HostileNetworkUtils {
                                 if (receivedID == sendingID) {
                                     if (Constants.DEBUG_PRINTING)
                                     {
-                                        Console.WriteLine("Packet sent and acknowledged.");
+                                        Console.WriteLine("Packet sent and acknowledged: "+sendingID);
                                     }
                                     return; 
                                 }
@@ -110,6 +121,7 @@ namespace HostileNetworkUtils {
 
         public static bool ReceiveFileFrom(byte[] metadataAsBytes, UdpClient sender)
         {
+            Console.WriteLine("receiving file");
             FileMetadata meta = new FileMetadata(metadataAsBytes);
             byte[] receivedBytes = null;
             IPEndPoint dude = null;
@@ -120,12 +132,16 @@ namespace HostileNetworkUtils {
             }
             while (currentPacket < meta.totalPackets)
             {
-
+                Console.WriteLine("receiving a packet");
                 receivedBytes = sender.Receive(ref dude);
+                Console.WriteLine("Packet received");
+             //   Console.WriteLine(Encoding.ASCII.GetString(receivedBytes));
                 if (Utils.VerifyChecksum(receivedBytes))
                 {
+                    Console.WriteLine( "checksum okay");
                     if (receivedBytes[Constants.FIELD_TYPE] == Constants.TYPE_FILE_DELIVERY)
                     {
+                        Console.WriteLine("looks like a metadata, fuck that.");
                         SendAckTo(-1, sender);
                         return false;
                     }
@@ -133,22 +149,35 @@ namespace HostileNetworkUtils {
 
                     if (datapack.id < meta.totalPackets - 1 && datapack.id == currentPacket)
                     {
-
+                        Console.WriteLine("appending to disk");
                         File.AppendAllText(Encoding.Default.GetString(meta.filename), Encoding.Default.GetString(datapack.payload), Encoding.Default);
+                        Console.WriteLine("HDD write done");
+
+                        currentPacket++;
+                        Console.WriteLine("incremented currentPacket: " + currentPacket);
+                        SendAckTo(datapack.id, sender);
                     }
                     else if (datapack.id == meta.totalPackets - 1 && datapack.id == currentPacket)
                     {
+                        Console.WriteLine("last packet");
                         int remainder = (meta.fileLength % Constants.PAYLOAD_SIZE);
                         byte[] finalBytes = new byte[remainder];
                         for (int i = 0; i < remainder; i++)
                         {
                             finalBytes[i] = receivedBytes[i + Constants.FIELD_PAYLOAD];
                         }
+                        Console.WriteLine("appending");
                         File.AppendAllText(Encoding.Default.GetString(meta.filename), Encoding.Default.GetString(finalBytes), Encoding.Default);
+                        Console.WriteLine("HDD write done");
+                        
+                        currentPacket++;
+                        Console.WriteLine("incremented currentPacket: " +currentPacket);
+                        SendAckTo(datapack.id, sender);
                     }
-                    currentPacket++;
-
-                    SendAckTo(datapack.id, sender);
+                    else if (datapack.id < currentPacket)
+                    {
+                        SendAckTo(datapack.id, sender);
+                    }
                 }
                 else
                 {
@@ -168,6 +197,7 @@ namespace HostileNetworkUtils {
 
         public static bool SendDirectoryTo(UdpClient target) 
         {
+
             IPEndPoint IPref=null;
             byte[] directoryListing = Utils.GetDirectoryListing();
             int totalPackets = Utils.GetDirectoryPacketsTotal();

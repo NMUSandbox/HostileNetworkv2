@@ -81,6 +81,7 @@ namespace HostileNetworkUtils {
             {
                 if (inputChecksum[i] != actualChecksum[i])
                 {
+
                     return false;
                 }
             }
@@ -97,7 +98,7 @@ namespace HostileNetworkUtils {
 
         public static int SendTo(UdpClient target, byte[] packet){
 
-            Random randomnessGenerator = new Random();  
+            Random randomnessGenerator = new Random(DateTime.Now.Millisecond);  
 
 	        if (randomnessGenerator.NextDouble() < Constants.SIMULATION_DROP_RATE && Constants.DEBUG_DROP_AND_CORRUPT) {
                 if (Constants.DEBUG_PRINTING){

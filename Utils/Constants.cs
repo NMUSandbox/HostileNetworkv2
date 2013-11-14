@@ -11,7 +11,11 @@
         public const int PAYLOAD_SIZE = 491; //id = 4 bytes, checksum = 16. 512-16-4 = 492
 
         public const int OP_TIMEOUT_SECONDS = 5;
-        public const int PACKET_TIMEOUT_MILLISECONDS = 1000;
+        public const int PACKET_TIMEOUT_MILLISECONDS = 100;
+
+        public const double SIMULATION_DROP_RATE = 0.05; // ratio of packets that won't get sent
+        public const double SIMULATION_CORRPUTION_RATE = 0.05; // ratio of packets that will be corrupted
+
 
         //These are the first byte locations for each field in the file metadata header
         public const int FIELD_TYPE = 0;
@@ -38,11 +42,8 @@
         public const byte TYPE_ACK = 0x04; //generic ack
         public const byte TYPE_DATA = 0x05; // "Steven's Folly" 
 
-        public const double SIMULATION_DROP_RATE = 0.2; // ratio of packets that won't get sent
-        public const double SIMULATION_CORRPUTION_RATE = 0.2; // ratio of packets that will be corrupted
-
         public const bool DEBUG_PRINTING = true; // when true, prints a message indicating corrupted or dropped packets
-        public const bool DEBUG_DROP_AND_CORRUPT = false; // when true, will drop or corrupt packets. When false, will not molest packets. I write the best comments. 
+        public const bool DEBUG_DROP_AND_CORRUPT = true; // when true, will drop or corrupt packets. When false, will not molest packets. I write the best comments. 
         public const bool DEBUG_PING_PONG_ACTIVE = true; // when true, use ping pong to do everything. AKA: the "we give up" switch
     }
 }
