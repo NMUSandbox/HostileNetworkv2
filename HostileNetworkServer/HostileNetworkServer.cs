@@ -41,20 +41,27 @@ namespace HostileNetwork {
 
                 switch (receivedBytes[Constants.FIELD_TYPE]) {
                     case Constants.TYPE_DIRECTORY_REQUEST:
-
-                        Console.WriteLine("Received directory request");
-
-                        if (SendDirectoryMetadataPacket(client))
-                            Console.WriteLine("Directory request sent successfully.");
-                        else
-                            Console.WriteLine("Failed to deliver directory request.");
-
-                        if (SendDirectoryPackets(client))
-                            Console.WriteLine("Directory sent successfully.");
-                        else
-                            Console.WriteLine("Failed to deliver directory.");
+                        Console.WriteLine("DIR request received");
+                        bool success = false;
+                        while (!success)
+                        {
+                            AckPacket ack = new AckPacket(-1);
+                            Utils.SendTo(client, ack.MyPacketAsBytes);
+                            Console.WriteLine("Ackd the request, going into PingPong method");
+                            success = PingPong.SendDirectoryTo(client);
+                        }
                         break;
                     case Constants.TYPE_FILE_DELIVERY:
+                        if (Constants.DEBUG_PING_PONG_ACTIVE)
+                        {
+                            bool receiveSuccess = false;
+                            while (!receiveSuccess)
+                            {
+                                AckPacket ack = new AckPacket(-1);
+                                Utils.SendTo(client, ack.MyPacketAsBytes);
+                                receiveSuccess = PingPong.ReceiveFileFrom(receivedBytes, client);
+                            }
+                        }
                         break;
                     case Constants.TYPE_FILE_REQUEST:
                         break;
@@ -82,7 +89,7 @@ namespace HostileNetwork {
         private static bool SendDirectoryMetadataPacket(UdpClient client) {
 
             //make sure to send ack
-            AckPacket directoryRequestAckPacket = new AckPacket(Constants.TYPE_ACK,0);
+            AckPacket directoryRequestAckPacket = new AckPacket(0);
             Utils.SendTo(client, directoryRequestAckPacket.MyPacketAsBytes);
 
             byte[] directoryListing = Utils.GetDirectoryListing();
@@ -118,7 +125,7 @@ namespace HostileNetwork {
                     return true;
                 }
 
-                if (directoryMetadataPacket.MyTimer.ElapsedMilliseconds > Constants.ACK_TIMEOUT_MILLISECONDS) {
+                if (directoryMetadataPacket.MyTimer.ElapsedMilliseconds > Constants.PACKET_TIMEOUT_MILLISECONDS) {
                     Utils.SendTo(client, directoryMetadataPacket.MyPacketAsBytes);
                     directoryMetadataPacket.MyTimer.Restart();
                 }

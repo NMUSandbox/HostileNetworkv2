@@ -40,8 +40,18 @@ namespace HostileNetwork {
                 switch (command) {
                     case "send":
                         fileName = GetValidFileName();
+                        Console.WriteLine("sending file");
+                        if (Constants.DEBUG_PING_PONG_ACTIVE)
+                        {
+                            bool sendSuccess = false;
+                            while (!sendSuccess)
+                            {
+                                sendSuccess = PingPong.SendFileTo(fileName, server);
+                            }
+                        }
                         break;
                     case "get":
+
                         break;
                     case "dir":
                         Console.WriteLine("Requesting directory listing from server...");
@@ -52,7 +62,6 @@ namespace HostileNetwork {
                 }
             }
         }
-
         private static void worker_ProgressChanged(object sender, ProgressChangedEventArgs e) {
         }
 
@@ -74,7 +83,7 @@ namespace HostileNetwork {
 
                     //receive the actual directory listing
                     receivedBytes = server.Receive(ref remoteIPEndPoint);
-                    string directoryListing = Encoding.Unicode.GetString(receivedBytes);
+                    string directoryListing = Encoding.Default.GetString(receivedBytes);
                     Console.WriteLine(directoryListing);
                 }
                 else if (receivedBytes[Constants.FIELD_TYPE] == Constants.TYPE_FILE_DELIVERY) {
@@ -84,15 +93,15 @@ namespace HostileNetwork {
         }
 
         private static void HandleDirectoryRequest(UdpClient server) {
+            DirectoryMetadataPacket dir = new DirectoryMetadataPacket(Constants.TYPE_DIRECTORY_REQUEST);
 
-            if(!SendDirectoryRequest(server)) {
-                Console.WriteLine("Failed to send directory request!");
-                return;
-            }
-
-            if (!ReceiveDirectory(server)) {
-                Console.WriteLine("Failed to receive directory!");
-                return;
+            PingPong.sendUntilAck(dir, server); 
+            IPEndPoint IPref=null;
+            bool success = false;
+           // byte[] rec = server.Receive(ref IPref);
+            while (!success)
+            {
+                PingPong.ReceiveDirectoryFrom(server.Receive(ref IPref), server);
             }
         }
 
@@ -144,7 +153,7 @@ namespace HostileNetwork {
 
                     //if it's == packetsPrinted, print it's payload to the screen, ack it, increment packetsPrinted
                     else if (next[Constants.FIELD_PACKET_ID] == packetsPrinted) {
-                        //get payload bytes, turn them into a string with Unicode encoding
+                        //get payload bytes, turn them into a string with Default encoding
                         //print those bytes
                         //ack the packet
                         packetsPrinted++;
@@ -163,10 +172,9 @@ namespace HostileNetwork {
              * */
         }
 
-        private static bool SendDirectoryRequest(UdpClient server) {
+       /* private static bool SendDirectoryRequest(UdpClient server) {
 
-            DirectoryMetadataPacket directoryRequestPacket = new DirectoryMetadataPacket(Constants.TYPE_DIRECTORY_REQUEST);
-            Utils.SendTo(server, directoryRequestPacket.MyPacketAsBytes);
+           Utils.SendTo(server, directoryRequestPacket.MyPacketAsBytes);
 
             Stopwatch operationTimer = new Stopwatch();
             operationTimer.Start();
@@ -194,7 +202,7 @@ namespace HostileNetwork {
                     return true;
                 }
 
-                if (directoryRequestPacket.MyTimer.ElapsedMilliseconds > Constants.ACK_TIMEOUT_MILLISECONDS) {
+                if (directoryRequestPacket.MyTimer.ElapsedMilliseconds > Constants.PACKET_TIMEOUT_MILLISECONDS) {
                     Utils.SendTo(server, directoryRequestPacket.MyPacketAsBytes);
                     directoryRequestPacket.MyTimer.Restart();
                 }
@@ -202,7 +210,7 @@ namespace HostileNetwork {
 
             Console.WriteLine("Operation timeout: error code #" + new Random().Next(9999));
             return false;
-        }
+        }*/
 
         private static void ReceivePingPongCallback(IAsyncResult res) {
 
@@ -254,6 +262,15 @@ namespace HostileNetwork {
             }
 
             return command;
+        }
+        private static void SendFile(string filename)
+        {
+            UdpClient target = GetConnectedServerObject();
+            bool sendSuccess = false;
+            while (!sendSuccess)
+            {
+                sendSuccess = PingPong.SendFileTo(filename, target);
+            }
         }
     }
 }

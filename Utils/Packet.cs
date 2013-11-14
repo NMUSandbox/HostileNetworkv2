@@ -33,6 +33,7 @@ namespace HostileNetworkUtils {
             get { return myType; }
             set { myType = value; }
         }
+        public byte getMyType() { return myType; } // eat it!
         
         protected byte[] MyChecksum {
             get { return myChecksum; }
@@ -48,7 +49,10 @@ namespace HostileNetworkUtils {
 
             myType = type;
         }
-
+        public Packet(int id)
+        {
+            myID = id;
+        }
         public Packet(byte type, int id) {
 
             myType = type;

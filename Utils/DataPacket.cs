@@ -5,18 +5,20 @@ namespace HostileNetworkUtils {
 
         private byte[] payload;
 
-        public DataPacket(byte[] payload, byte type, byte[] packetBytes, int id)
-            : base(type, packetBytes, id) {
+        public DataPacket(byte[] payload, int id)
+            : base(id) {
 
                 this.payload = payload;
                 MyPacketAsBytes = MakePacket();
+                MyType = Constants.TYPE_DATA; // don't let sarkela EVER see this
         }
 
         public byte[] MakePacket() {
 
             byte[] packet = new Byte[Constants.PACKET_SIZE];
             packet = Utils.InitializeArray(packet);
-
+            //byte 0
+            packet[Constants.FIELD_TYPE] = MyType;
             //bytes 0-3
             byte[] IDbytes = BitConverter.GetBytes(MyID);
             for (int i = 0; i < IDbytes.Length; i++) {
@@ -28,10 +30,10 @@ namespace HostileNetworkUtils {
                 packet[i + Constants.FIELD_PAYLOAD] = payload[i];
             }
 
-            //bytes 479-511
+            //the last bytes
             MyChecksum = Utils.GetChecksum(packet);
-            for (int i = 0; i > MyChecksum.Length; i--) {
-                packet[i + Constants.FIELD_CHECKSUM] = MyChecksum[i];
+            for (int i = 0; i < MyChecksum.Length; i++) {
+                packet[Constants.FIELD_CHECKSUM + i] = MyChecksum[i];
             }
 
             return packet;

@@ -6,16 +6,16 @@ namespace HostileNetworkUtils {
         byte[] fileName;
         int fileLength;
         int fileNameLength;
-        private byte[] myTotalPackets;
+        private int myTotalPackets;
 
-        public byte[] MyTotalPackets {
+        public int MyTotalPackets {
             get { return myTotalPackets; }
             set { myTotalPackets = value; }
         }
 
-        public FileMetadataPacket(byte type, byte[] packetAsBytes, int fileLength, 
-            int fileNameLength, byte[] fileName, byte[] totalPackets, int id = -1) 
-            : base(type, packetAsBytes, id) {
+        public FileMetadataPacket(byte type, int fileLength, 
+            int fileNameLength, byte[] fileName, int totalPackets, int id = -1) 
+            : base(type, id) {
 
             this.fileLength = fileLength;
             this.fileNameLength = fileNameLength;
@@ -40,8 +40,10 @@ namespace HostileNetworkUtils {
             packet[Constants.FIELD_TYPE] = MyType;
 
             //bytes 1-4
-            for (int i = 0; i < MyTotalPackets.Length; i++) {
-                packet[Constants.FIELD_TOTAL_PACKETS + i] = MyTotalPackets[i];
+            byte[] totalPacketsArray = BitConverter.GetBytes(myTotalPackets);
+            for (int i = 0; i < totalPacketsArray.Length; i++)
+            {
+                packet[Constants.FIELD_TOTAL_PACKETS + i] = totalPacketsArray[i];
             }
 
             //bytes 5-8
