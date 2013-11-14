@@ -19,10 +19,6 @@ using System.Diagnostics;
 namespace HostileNetworkUtils {
     public class PingPong {
 
-        //send some packet over and over until you get a valid ACK
-        //handles timeouts, handles a lack of replies. 
-        //looks ugly as sin
-        //also fuck you, give me access to Packet's ID param. :P
         public static void sendUntilAck(Packet sendingPacket, UdpClient target){
             IPEndPoint remoteTarget = null;
             bool sent = false;
@@ -113,35 +109,44 @@ namespace HostileNetworkUtils {
             }
             return true;
         }
-
-
-
-
-
-
         public static bool ReceiveFileFrom(byte[] metadataAsBytes, UdpClient sender)
         {
-            Console.WriteLine("receiving file");
+            if(Constants.DEBUG_PRINTING)Console.WriteLine("receiving file");
             FileMetadata meta = new FileMetadata(metadataAsBytes);
             byte[] receivedBytes = null;
             IPEndPoint dude = null;
             int currentPacket = 0;
             if (File.Exists(Encoding.Default.GetString(meta.filename)))
             {
-                File.Delete(Encoding.Default.GetString(meta.filename));
+                if (Constants.DEBUG_PRINTING) Console.WriteLine("file exists, deleting");
+                bool success = false;
+                while (!success)
+                {
+                    try
+                    {
+                        File.Delete(Encoding.Default.GetString(meta.filename));
+                        success = true;
+                        if (Constants.DEBUG_PRINTING) Console.WriteLine("file deleted");
+                    }
+                    catch (Exception e)
+                    {
+                        if(Constants.DEBUG_PRINTING) Console.WriteLine("delete failed!");
+
+                    }
+                }
             }
             while (currentPacket < meta.totalPackets)
             {
-                Console.WriteLine("receiving a packet");
+                if (Constants.DEBUG_PRINTING) Console.WriteLine("receiving a packet");
                 receivedBytes = sender.Receive(ref dude);
-                Console.WriteLine("Packet received");
-             //   Console.WriteLine(Encoding.ASCII.GetString(receivedBytes));
+                if (Constants.DEBUG_PRINTING) Console.WriteLine("Packet received");
+                if (Constants.DEBUG_PRINTING) Console.WriteLine(Encoding.ASCII.GetString(receivedBytes));
                 if (Utils.VerifyChecksum(receivedBytes))
                 {
-                    Console.WriteLine( "checksum okay");
+                    if (Constants.DEBUG_PRINTING) Console.WriteLine("checksum okay");
                     if (receivedBytes[Constants.FIELD_TYPE] == Constants.TYPE_FILE_DELIVERY)
                     {
-                        Console.WriteLine("looks like a metadata, fuck that.");
+                        if (Constants.DEBUG_PRINTING) Console.WriteLine("looks like a metadata, fuck that.");
                         SendAckTo(-1, sender);
                         return false;
                     }
@@ -149,29 +154,41 @@ namespace HostileNetworkUtils {
 
                     if (datapack.id < meta.totalPackets - 1 && datapack.id == currentPacket)
                     {
-                        Console.WriteLine("appending to disk");
-                        File.AppendAllText(Encoding.Default.GetString(meta.filename), Encoding.Default.GetString(datapack.payload), Encoding.Default);
-                        Console.WriteLine("HDD write done");
+                        if (Constants.DEBUG_PRINTING) Console.WriteLine("appending to disk");
+                        bool success = false;
+                        while (!success)
+                        {
+                            try
+                            {
+                                File.AppendAllText(Encoding.Default.GetString(meta.filename), Encoding.Default.GetString(datapack.payload), Encoding.Default);
+                                success = true;
+                            }
+                            catch (Exception e)
+                            {
+                                Console.WriteLine(e.Message);
+                            }
+                        }
+                        if (Constants.DEBUG_PRINTING) Console.WriteLine("HDD write done");
 
                         currentPacket++;
-                        Console.WriteLine("incremented currentPacket: " + currentPacket);
+                        if (Constants.DEBUG_PRINTING) Console.WriteLine("incremented currentPacket: " + currentPacket);
                         SendAckTo(datapack.id, sender);
                     }
                     else if (datapack.id == meta.totalPackets - 1 && datapack.id == currentPacket)
                     {
-                        Console.WriteLine("last packet");
+                        if (Constants.DEBUG_PRINTING) Console.WriteLine("last packet");
                         int remainder = (meta.fileLength % Constants.PAYLOAD_SIZE);
                         byte[] finalBytes = new byte[remainder];
                         for (int i = 0; i < remainder; i++)
                         {
                             finalBytes[i] = receivedBytes[i + Constants.FIELD_PAYLOAD];
                         }
-                        Console.WriteLine("appending");
+                        if (Constants.DEBUG_PRINTING) Console.WriteLine("appending");
                         File.AppendAllText(Encoding.Default.GetString(meta.filename), Encoding.Default.GetString(finalBytes), Encoding.Default);
-                        Console.WriteLine("HDD write done");
+                        if (Constants.DEBUG_PRINTING) Console.WriteLine("HDD write done");
                         
                         currentPacket++;
-                        Console.WriteLine("incremented currentPacket: " +currentPacket);
+                        if (Constants.DEBUG_PRINTING) Console.WriteLine("incremented currentPacket: " + currentPacket);
                         SendAckTo(datapack.id, sender);
                     }
                     else if (datapack.id < currentPacket)
@@ -187,14 +204,6 @@ namespace HostileNetworkUtils {
             return true;
         }
 
-
-
-
-
-
-
-
-
         public static bool SendDirectoryTo(UdpClient target) 
         {
 
@@ -203,108 +212,169 @@ namespace HostileNetworkUtils {
             int totalPackets = Utils.GetDirectoryPacketsTotal();
             DirectoryMetadataPacket directoryMetadataPacket = new DirectoryMetadataPacket(Constants.TYPE_DIRECTORY_DELIVERY, totalPackets, directoryListing.Length);
            // Utils.SendTo(target, directoryMetadataPacket.MyPacketAsBytes);
-            Console.WriteLine("Metadata packet ready.");
+            if (Constants.DEBUG_PRINTING) Console.WriteLine("Metadata packet ready.");
             bool sent = false;
             Stopwatch timeout = new Stopwatch();
             byte[] receivedBytes = null;
 
             while (!sent){
                 Utils.SendTo(target, directoryMetadataPacket.MyPacketAsBytes);
-                Console.WriteLine("Metadata sent");
+                if (Constants.DEBUG_PRINTING) Console.WriteLine("Metadata sent");
                 timeout.Restart();
                 while (timeout.ElapsedMilliseconds < Constants.PACKET_TIMEOUT_MILLISECONDS)
                 {
                     if (target.Available != 0)
                     {
                         receivedBytes = target.Receive(ref IPref);
-
                         if (!Utils.VerifyChecksum(receivedBytes))
                         {
                             continue;
                         }
-                        if (receivedBytes[Constants.FIELD_TYPE] == Constants.TYPE_DIRECTORY_REQUEST) { return false; }
+                        if (Constants.DEBUG_PRINTING) Console.WriteLine("got something back with a valid ");
+                        if (receivedBytes[Constants.FIELD_TYPE] == Constants.TYPE_DIRECTORY_REQUEST) {
+                            if (Constants.DEBUG_PRINTING) Console.WriteLine("this looks and smells like a directory request. dumping and starting over");
+                            return false; 
+                        }
 
                         if (BitConverter.ToInt32(receivedBytes, Constants.FIELD_ACK_ID) == -1)
                         {
+                            if (Constants.DEBUG_PRINTING) Console.WriteLine("This is the ack for our metadata, yay!");
                             sent = true;
                             break;
                         }
                     }
                 }
-                Console.WriteLine("Timeout");
+                if (!sent) { if (Constants.DEBUG_PRINTING)   Console.WriteLine("Timeout"); }
             }
+
+            if (Constants.DEBUG_PRINTING) Console.WriteLine("Okay... so metadata is sent. time to send the directory proper");
+            if (Constants.DEBUG_PRINTING) Console.WriteLine("Sending in this many packets: " + totalPackets);
             int byteIndex = 0;
-            for (int i = 0; i < totalPackets-1; i++)
+            for (int i = 0; i < totalPackets; i++)
             {
                 byte[] stagedPayload =  new byte[Constants.PAYLOAD_SIZE];
                 stagedPayload = Utils.InitializeArray(stagedPayload);
                 for(int j=0; j<stagedPayload.Length;j++){
-                    if (j < directoryListing.Length)
+                    if (j < directoryListing.Length && byteIndex<directoryListing.Length)
                     {
-                        stagedPayload[j] = directoryListing[byteIndex++];
+                        stagedPayload[j] = directoryListing[byteIndex];
+                        byteIndex++;
                     }
                 }
+                if (Constants.DEBUG_PRINTING) Console.WriteLine("payload staged");
                 DataPacket stagedPacket = new DataPacket(stagedPayload, i);
+                if (Constants.DEBUG_PRINTING) Console.WriteLine("packet ready, sending");
                 sendUntilAck(stagedPacket, target);
+                if (Constants.DEBUG_PRINTING) Console.WriteLine("sent");
             }
             return true;
         }
-        public static bool ReceiveDirectoryFrom(byte[] metadataAsBytes, UdpClient sender) {
-
-            if (!Utils.VerifyChecksum(metadataAsBytes)) {
-                Console.WriteLine("checksum failed right off the bat in ReceiveDirectoryFrom");
+        public static bool StartReceiveDirectory(byte[] metadataAsBytes, UdpClient target) {
+            if (!Utils.VerifyChecksum(metadataAsBytes))
+            {
+                if (Constants.DEBUG_PRINTING) Console.WriteLine("checksum failed right off the bat in ReceiveDirectoryFrom");
                 return false;
             }
-
-            DirMetadata meta = new DirMetadata(metadataAsBytes);
             AckPacket ack = new AckPacket(-1);
-            Console.WriteLine("sending an ack");
-            Utils.SendTo(sender, ack.MyPacketAsBytes);
+            if (Constants.DEBUG_PRINTING) Console.WriteLine("sending an ack");
+            Utils.SendTo(target, ack.MyPacketAsBytes);
+      // DirMetadata meta = new DirMetadata(metadataAsBytes);
 
+            bool success = false;
+            while (!success)
+            {
+                success = CatchMetadataResend(metadataAsBytes, target);
+            }
+            if (Constants.DEBUG_PRINTING) Console.WriteLine("receive directory complete");
+            return true;
+
+        }
+        public static bool CatchMetadataResend(byte[] metadataAsBytes, UdpClient target){
             byte[] receivedBytes = null;
             IPEndPoint dude = null;
-            int currentPacket = 0;
-            Console.WriteLine("set to receive the packets");
-
-            while (currentPacket < meta.totalPackets)
+            if (Constants.DEBUG_PRINTING) Console.WriteLine("set to receive the first datapacket");
+            DirMetadata meta = new DirMetadata(metadataAsBytes);
+            bool received = false;
+            while (!received)
             {
-                receivedBytes = sender.Receive(ref dude);
+                receivedBytes = target.Receive(ref dude);
                 if (Utils.VerifyChecksum(receivedBytes))
                 {
                     if (receivedBytes[Constants.FIELD_TYPE] == Constants.TYPE_DIRECTORY_DELIVERY)
                     {
+                        AckPacket ack = new AckPacket(-1);
+                        if (Constants.DEBUG_PRINTING) Console.WriteLine("first expected data was actually metadata, acking, restarting");
+                        Utils.SendTo(target, ack.MyPacketAsBytes);
                         return false;
                     }
-                    Data datapack = new Data(receivedBytes);
-
-                    if (datapack.id < meta.totalPackets - 1 && datapack.id == currentPacket)
-                    {
-                        Console.WriteLine(Encoding.Default.GetString(datapack.payload));
-                    }
-                    else if (datapack.id == meta.totalPackets - 1 && datapack.id == currentPacket)
-                    {
-                        int remainder = (meta.dirLength % Constants.PAYLOAD_SIZE);
-                        byte[] finalBytes = new byte[remainder];
-                        for (int i = 0; i < remainder; i++)
-                        {
-                            finalBytes[i] = receivedBytes[i + Constants.FIELD_PAYLOAD];
-                        }
-                        Console.WriteLine(Encoding.Default.GetString(finalBytes)) ;
-                    }
-                    currentPacket++;
-
-                    SendAckTo(datapack.id, sender);
+                    received = true;
                 }
                 else
                 {
-                    Console.WriteLine("checksum failure");
+                    if (Constants.DEBUG_PRINTING) Console.WriteLine("checksum failure");
+                }
+
+            }
+            return ReceiveAllDirectoryPackets(receivedBytes, meta, target);
+        }//end 
+        public static bool ReceiveAllDirectoryPackets(byte[] first, DirMetadata meta, UdpClient target)
+        {
+            IPEndPoint IPRef = null;
+            if(first == null){return false;}
+            Data data = new Data(first);
+            Console.WriteLine(Encoding.Default.GetString(data.payload));
+
+            if (Constants.DEBUG_PRINTING) Console.WriteLine("sending ack for first packet");
+            SendAckTo(data.id, target);
+            if (Constants.DEBUG_PRINTING) Console.WriteLine("ready to receive the other packets. looking for: " + meta.totalPackets + "-1");
+            int currentPacket = 1;
+            while (currentPacket < meta.totalPackets)
+            {
+                byte[] recBytes = target.Receive(ref IPRef);
+                if (Constants.DEBUG_PRINTING) Console.WriteLine("packet recieved!");
+                if (!Utils.VerifyChecksum(recBytes)) {
+                    if (Constants.DEBUG_PRINTING) Console.WriteLine("checksum failed on datagram");
+                    continue; 
+                }
+                data = new Data(recBytes);
+                if (data.id < currentPacket)
+                {
+                    SendAckTo(data.id, target);
+                    if (Constants.DEBUG_PRINTING) Console.WriteLine("we recieved a previously seen packet. sending another ack and looing for a new one.");
+                }
+                else if (data.id == currentPacket && currentPacket != meta.totalPackets-1)
+                {
+                    if (Constants.DEBUG_PRINTING) Console.WriteLine("standard case.");
+                    Console.WriteLine(Encoding.Default.GetString(data.payload));
+                    if (Constants.DEBUG_PRINTING) Console.WriteLine("Acking: " + data.id);
+                    SendAckTo(data.id, target);
+                    currentPacket++;
+                }
+                else if (data.id == currentPacket && currentPacket == meta.totalPackets - 1)
+                {
+                    if (Constants.DEBUG_PRINTING) Console.WriteLine("last datagram special case");
+
+                    byte[] finalBytes = new byte[(meta.dirLength % Constants.PAYLOAD_SIZE)];
+                    for (int i = 0; i < finalBytes.Length; i++)
+                    {
+                        finalBytes[i] = data.payload[i + Constants.FIELD_PAYLOAD];
+                    }
+                    Console.WriteLine(Encoding.ASCII.GetString(finalBytes));
+                    currentPacket++;
+              
+                    SendAckTo(data.id, target);
+                }
+                else
+                {//lolwat
+                    Console.WriteLine("something went wrong...");
                 }
             }
+            if (Constants.DEBUG_PRINTING) Console.WriteLine("all packets received");
             return true;
         }
 
-    }
-    struct FileMetadata {
+    }//end of class
+    public struct FileMetadata {
         public byte type;
         public int totalPackets;
         public int fileLength;
@@ -317,6 +387,7 @@ namespace HostileNetworkUtils {
             totalPackets = BitConverter.ToInt32(receivedBytes, Constants.FIELD_TOTAL_PACKETS);
             fileLength = BitConverter.ToInt32(receivedBytes, Constants.FIELD_FILE_LENGTH);
             filenameLength = BitConverter.ToInt32(receivedBytes, Constants.FIELD_FILENAME_LENGTH);
+        //    if (Constants.DEBUG_PRINTING) Console.WriteLine("building file metadata, filenameLength =  " + filenameLength);
             filename = new byte[filenameLength];
             for (int i = 0; i < filename.Length; i++)
             {
@@ -329,7 +400,7 @@ namespace HostileNetworkUtils {
             }
         }
     };
-    struct Data {
+    public struct Data {
         public int id;
         public byte[] payload;
         public byte[] checksum;
@@ -349,7 +420,7 @@ namespace HostileNetworkUtils {
             }
         }
     };
-    struct DirMetadata {
+    public struct DirMetadata {
         public byte type;
         public int totalPackets;
         public int dirLength;

@@ -1,6 +1,10 @@
 ﻿namespace HostileNetworkUtils {
     public class Constants {
 
+        public const bool DEBUG_PRINTING = false; // when true, prints a message indicating corrupted or dropped packets
+        public const bool DEBUG_DROP_AND_CORRUPT = false; // when true, will drop or corrupt packets
+        public const bool DEBUG_PING_PONG_ACTIVE = true; // when true, use ping pong to do everything
+
         public const int CLIENT_PORT = 58008;
         public const int SERVER_PORT = 59008;
         public const string SEND_ADDRESS_STRING = "127.0.0.1";
@@ -41,9 +45,5 @@
         public const byte TYPE_DIRECTORY_DELIVERY = 0x03; // send to a system before you give them a directory listing
         public const byte TYPE_ACK = 0x04; //generic ack
         public const byte TYPE_DATA = 0x05;
-
-        public const bool DEBUG_PRINTING = true; // when true, prints a message indicating corrupted or dropped packets
-        public const bool DEBUG_DROP_AND_CORRUPT = false; // when true, will drop or corrupt packets
-        public const bool DEBUG_PING_PONG_ACTIVE = true; // when true, use ping pong to do everything
     }
 }

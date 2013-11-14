@@ -37,9 +37,10 @@ namespace HostileNetwork {
                         }
                         break;
                     case "get":
+                        HandleFileGetRequest(server);
                         break;
                     case "dir":
-                        Console.WriteLine("Requesting directory listing from server...");
+                      //  Console.WriteLine("Requesting directory listing from server...");
                         HandleDirectoryRequest(server);
                         break;
                     default:
@@ -47,16 +48,71 @@ namespace HostileNetwork {
                 }
             }
         }
+        private static void HandleFileGetRequest(UdpClient target)
+        {
+            IPEndPoint IPRef = null;
+            Console.Write("Please enter a filepath\\filename: ");
+            string name = Console.ReadLine();
+            FileMetadataPacket pack = new FileMetadataPacket(Constants.TYPE_FILE_REQUEST, 0, name.Length, Encoding.ASCII.GetBytes(name), 0);
+       //     PingPong.sendUntilAck(pack, target);
 
+            bool sent = false;
+
+            Stopwatch timeout = new Stopwatch();
+            byte[] backup = new byte[Constants.PACKET_SIZE];
+            byte[] receivedBytes=null;
+            while (!sent)
+            {
+                for (int i = 0; i < Constants.PACKET_SIZE; i++)
+                {
+                    backup[i] = pack.MyPacketAsBytes[i];
+                }
+                Utils.SendTo(target, backup);
+                timeout.Restart();
+                while (timeout.ElapsedMilliseconds < Constants.PACKET_TIMEOUT_MILLISECONDS)
+                {
+                    if (target.Available != 0)
+                    {
+                        receivedBytes = target.Receive(ref IPRef);
+
+                        if (Utils.VerifyChecksum(receivedBytes))
+                        {
+                            if (receivedBytes[Constants.FIELD_TYPE] == Constants.TYPE_FILE_DELIVERY)
+                            {
+                                sent= true;
+                            }
+                        }
+                        else
+                        {
+                            if(Constants.DEBUG_PRINTING)Console.WriteLine("Checksum failed on ack");
+                        }
+                    }
+                }
+                if (Constants.DEBUG_PRINTING && sent != true) Console.WriteLine("Timeout");
+            }
+            PingPong.SendAckTo(-1, target);
+
+          //  Console.WriteLine("request sent and ack'd. moving to receive metadata");
+          //  byte[] meta = target.Receive(ref IPRef);
+            bool success = false;
+            while (!success)
+            {
+                AckPacket ack = new AckPacket(-1);
+                Utils.SendTo(target, ack.MyPacketAsBytes);
+                success = PingPong.ReceiveFileFrom(receivedBytes, target);
+            }
+      //      Console.WriteLine("Handle file get complete");
+        }
         private static void HandleDirectoryRequest(UdpClient server) {
-
+           
             DirectoryMetadataPacket dir = new DirectoryMetadataPacket(Constants.TYPE_DIRECTORY_REQUEST);
 
             PingPong.sendUntilAck(dir, server); 
             IPEndPoint IPref = null;
             bool success = false;
-            while (!success) {
-                PingPong.ReceiveDirectoryFrom(server.Receive(ref IPref), server);
+            while (!success)
+            {
+                success = PingPong.StartReceiveDirectory(server.Receive(ref IPref), server);
             }
         }
 
