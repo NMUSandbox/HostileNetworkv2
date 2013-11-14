@@ -72,16 +72,12 @@ namespace HostileNetworkUtils {
             }
             byte[] actualChecksum = Utils.GetChecksum(received);
 
-            if (inputChecksum.Length != actualChecksum.Length)
-            {
+            if (inputChecksum.Length != actualChecksum.Length) {
                 return false;
             }
 
-            for (int i = 0; i < inputChecksum.Length; i++)
-            {
-                if (inputChecksum[i] != actualChecksum[i])
-                {
-
+            for (int i = 0; i < inputChecksum.Length; i++) {
+                if (inputChecksum[i] != actualChecksum[i]) {
                     return false;
                 }
             }
@@ -104,62 +100,40 @@ namespace HostileNetworkUtils {
                 if (Constants.DEBUG_PRINTING){
                     Console.WriteLine("Packet dropped.");
                 }
-                return -1;//return now, don't send packet
+                return -1;
             }
 
             if (randomnessGenerator.NextDouble() < Constants.SIMULATION_CORRPUTION_RATE && Constants.DEBUG_DROP_AND_CORRUPT) {
                 if (Constants.DEBUG_PRINTING){
                     Console.WriteLine("Packet corrupted.");
                 }
-                for (int i = 0; i < 5; i++) {//molest packet
+                for (int i = 0; i < 5; i++) {
                     packet[randomnessGenerator.Next(packet.GetLength(0))] = (byte)randomnessGenerator.Next(255);
                 }
                 target.Send(packet, packet.GetLength(0));
                 return -2;
             }
-            //if (Constants.DEBUG_PRINTING) { Console.WriteLine("pack sent successfully"); }
             target.Send(packet, packet.GetLength(0));
 
             return 1;
-        }//end sendTo
+        }
 
         public static void ReceiveFile(UdpClient udpSource, byte[] metadata) {
-            int currentWorkingPacket = 0;
-  /*    x      //get filename out of metadata packet (use filename size)
-        x    //get filesize out
-        x    //get packet num out
 
-        --    //open a new file with the filename
-        x    //loop{
-        x        //recieve a packet. 
-        x        //copy last 32 bytes into a variable
-        x        //0 out the checksum in the packet. 
-        x        //run md5 on the packet. 
-        x        //compare checksums. if !=: do nothing.
-        x        //if == and ID == currentworkingpacket, write that mother to the disk
-        x        //if == and ID < currentWorkingPacket, ack that packet.
-        x        //if == and ID > currentWorkingPacket{
-        o            //if ID > recieverwindow (constant?), do nothing
-        o            //if ID < recieverWindow, store this packet for later
-        x        //sort the stored packets. 
-        x        //loop through them. 
-        x        //as long as the lowest ID in the list == currentWorkingID, write it to disk and remove from list. 
-            //  loop}*/
+            int currentWorkingPacket = 0;
             int filenameSize = BitConverter.ToInt32(metadata, Constants.FIELD_FILENAME_LENGTH);
             int fileLength = BitConverter.ToInt32(metadata, Constants.FIELD_FILE_LENGTH);
             int packetTotal = BitConverter.ToInt32(metadata, Constants.FIELD_TOTAL_PACKETS);
             byte[] filenameBytes = new byte[filenameSize];
-            for (int i = 0; i < filenameSize; i++)
-            {
+            for (int i = 0; i < filenameSize; i++) {
                 filenameBytes[i] = metadata[i + Constants.FIELD_FILENAME];
             }
             string filename = Encoding.Unicode.GetString(filenameBytes);
             
-            
             List<dataPacketBuffer> buffer = new List<dataPacketBuffer>();
 
             IPEndPoint remoteIPEndPoint = null;
-            while (currentWorkingPacket < packetTotal){
+            while (currentWorkingPacket < packetTotal) {
                 byte[] receivedBytes = udpSource.Receive(ref remoteIPEndPoint); //start with a new packet
 
                 if (VerifyChecksum(receivedBytes)) { //valid checksum
@@ -179,18 +153,17 @@ namespace HostileNetworkUtils {
                         //write to file
                     }
                     else if(receivedPacket.getID() > currentWorkingPacket){
-                        buffer.Add(receivedPacket); // there is currently no upper limit to the number of packets stored in the buffer
+                        buffer.Add(receivedPacket); 
                     }
                 }
 
                 buffer.Sort(
-                    delegate(dataPacketBuffer s1, dataPacketBuffer s2){
+                    delegate(dataPacketBuffer s1, dataPacketBuffer s2) {
                         return s1.getID().CompareTo(s2.getID());
                     }
                 );
                 foreach (dataPacketBuffer item in buffer) {
-                    if (item.getID() == currentWorkingPacket)
-                    {
+                    if (item.getID() == currentWorkingPacket) {
                         File.AppendAllText(filename, Encoding.Unicode.GetString(item.getPayload()));
                         buffer.Remove(item);
                         currentWorkingPacket++;
@@ -211,35 +184,5 @@ namespace HostileNetworkUtils {
                 public void setID(int newID) { ID = newID; }
                 public int getID() { return ID; }
         };
-
-        public static void SendFileTo(UdpClient udpTarget, string filename) {
-
-            if (!File.Exists(filename)) {
-                Console.WriteLine("FILE NOT FOUND!");
-                return;
-            }
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~TO DO:~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            //send metadata packet for the file
-            //Send the file. This is a complex series of tasks and I'm still figuring it all out. 
-/*
- * Here's the vague theory. We have an array tracking all of our data packets. We send a group of these, called the <window>. 
- * This is how many we are sending at a time. When we send a packet, we set a timer for that packet. 
- * When a packet timeouts, we resend the packet, and reset it's timer. If an ack comes in for a given packet, we clear that one out of 
- * the array, setting it to null. We'll move on to the next part of the file after that. 
- * 
- * I've seen this done as: the whole file is loaded into a big ass array, and the window is just an int representing the window being sent
- * when the 'left' side of the window is cleared, shift the window down. 
- * 
- * This seems like it might get messy with large files. I'm thinking that the window should be the only array. When an element is cleared to 
- * null, we'll read the next part of the file in, turn it into a packet, and send it off in that new position. in this case, our window is 
- * an array of DataPacket objects. Each of these tracks it's timeout, and can generate it's 512 byte array to send to the reciever. Still 
- * doing some thinking as to how we'll track the progress of this method.
- */
-
-        //    int windowPosition = 0;
-        //    DataPacket[] window = new DataPacket[Constants.WINDOW_SIZE];
-        //    while((window.Count(s => s == null)) > 0) //will run if there are any null positions in the array. 
-            
-        }//end sendFileTo
     }
 }

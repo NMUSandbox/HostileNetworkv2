@@ -250,16 +250,16 @@ namespace HostileNetworkUtils {
             return true;
         }
         public static bool ReceiveDirectoryFrom(byte[] metadataAsBytes, UdpClient sender) {
-            if (!Utils.VerifyChecksum(metadataAsBytes))
-            {
+
+            if (!Utils.VerifyChecksum(metadataAsBytes)) {
                 Console.WriteLine("checksum failed right off the bat in ReceiveDirectoryFrom");
                 return false;
             }
+
             DirMetadata meta = new DirMetadata(metadataAsBytes);
             AckPacket ack = new AckPacket(-1);
             Console.WriteLine("sending an ack");
             Utils.SendTo(sender, ack.MyPacketAsBytes);
-
 
             byte[] receivedBytes = null;
             IPEndPoint dude = null;
