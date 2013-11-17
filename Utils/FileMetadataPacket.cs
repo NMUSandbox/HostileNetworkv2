@@ -13,8 +13,8 @@ namespace HostileNetworkUtils {
             set { myTotalPackets = value; }
         }
 
-        public FileMetadataPacket(byte type, int fileLength, 
-            int fileNameLength, byte[] fileName, int totalPackets, int id = -1) 
+        public FileMetadataPacket(byte type, int fileLength,
+            int fileNameLength, byte[] fileName, int totalPackets, int id = -1)
             : base(type, id) {
 
             this.fileLength = fileLength;
@@ -27,7 +27,6 @@ namespace HostileNetworkUtils {
 
         public byte[] MakePacket() {
 
-            //maybe move this?
             if (fileName.Length > Constants.MAX_FILENAME_SIZE) {
                 Console.WriteLine("ERROR: Filename length too big!");
                 return null;
@@ -41,8 +40,7 @@ namespace HostileNetworkUtils {
 
             //bytes 1-4
             byte[] totalPacketsArray = BitConverter.GetBytes(myTotalPackets);
-            for (int i = 0; i < totalPacketsArray.Length; i++)
-            {
+            for (int i = 0; i < totalPacketsArray.Length; i++) {
                 packet[Constants.FIELD_TOTAL_PACKETS + i] = totalPacketsArray[i];
             }
 

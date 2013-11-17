@@ -10,15 +10,17 @@ namespace HostileNetworkUtils {
 
             this.payload = payload;
             MyPacketAsBytes = MakePacket();
-            MyType = Constants.TYPE_DATA; // don't let sarkela EVER see this
+            MyType = Constants.TYPE_DATA;
         }
 
         public byte[] MakePacket() {
 
             byte[] packet = new Byte[Constants.PACKET_SIZE];
             packet = Utils.InitializeArray(packet);
+
             //byte 0
             packet[Constants.FIELD_TYPE] = MyType;
+
             //bytes 0-3
             byte[] IDbytes = BitConverter.GetBytes(MyID);
             for (int i = 0; i < IDbytes.Length; i++) {

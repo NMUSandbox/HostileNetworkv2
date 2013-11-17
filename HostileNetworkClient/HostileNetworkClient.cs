@@ -1,12 +1,10 @@
 ﻿using HostileNetworkUtils;
 using System;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading;
 
 namespace HostileNetwork {
     public class HostileNetworkClient {
@@ -22,18 +20,18 @@ namespace HostileNetwork {
             string command;
 
             while (true) {
-                command = acceptCommand();
+                command = AcceptCommand();
                 fileName = "";
 
                 switch (command) {
                     case "send":
                         fileName = GetValidFileName();
-                        Console.WriteLine("sending file");
                         if (Constants.DEBUG_PING_PONG_ACTIVE) {
                             bool sendSuccess = false;
                             while (!sendSuccess) {
                                 sendSuccess = PingPong.SendFileTo(fileName, server);
                             }
+                            Console.WriteLine("File sent successfully.");
                         }
                         break;
                     case "get":
@@ -48,16 +46,17 @@ namespace HostileNetwork {
             }
         }
         private static void HandleFileGetRequest(UdpClient target) {
-            IPEndPoint IPRef = null;
+
+            IPEndPoint remoteIPEndPoint = null;
             Console.Write("Please enter a filepath\\filename: ");
             string name = Console.ReadLine();
-            FileMetadataPacket pack = new FileMetadataPacket(Constants.TYPE_FILE_REQUEST, 0, name.Length, Encoding.ASCII.GetBytes(name), 0);
-            
+            FileMetadataPacket pack = new FileMetadataPacket(Constants.TYPE_FILE_REQUEST, 0, name.Length, Encoding.Default.GetBytes(name), 0);
+            byte[] receivedBytes = null;
+
             bool sent = false;
 
             Stopwatch timeout = new Stopwatch();
             byte[] backup = new byte[Constants.PACKET_SIZE];
-            byte[] receivedBytes = null;
             while (!sent) {
                 for (int i = 0; i < Constants.PACKET_SIZE; i++) {
                     backup[i] = pack.MyPacketAsBytes[i];
@@ -66,7 +65,7 @@ namespace HostileNetwork {
                 timeout.Restart();
                 while (timeout.ElapsedMilliseconds < Constants.PACKET_TIMEOUT_MILLISECONDS) {
                     if (target.Available != 0) {
-                        receivedBytes = target.Receive(ref IPRef);
+                        receivedBytes = target.Receive(ref remoteIPEndPoint);
 
                         if (Utils.VerifyChecksum(receivedBytes)) {
                             if (receivedBytes[Constants.FIELD_TYPE] == Constants.TYPE_FILE_DELIVERY) {
@@ -75,7 +74,6 @@ namespace HostileNetwork {
                         }
                     }
                 }
-                if (Constants.DEBUG_PRINTING && sent != true) Console.WriteLine("Timeout");
             }
             PingPong.SendAckTo(-1, target);
 
@@ -85,17 +83,18 @@ namespace HostileNetwork {
                 Utils.SendTo(target, ack.MyPacketAsBytes);
                 success = PingPong.ReceiveFileFrom(receivedBytes, target);
             }
-            //      Console.WriteLine("Handle file get complete");
+            Console.WriteLine("File received successfully.");
+
         }
         private static void HandleDirectoryRequest(UdpClient server) {
 
             DirectoryMetadataPacket dir = new DirectoryMetadataPacket(Constants.TYPE_DIRECTORY_REQUEST);
 
             PingPong.sendUntilAck(dir, server);
-            IPEndPoint IPref = null;
+            IPEndPoint remoteIPEndPoint = null;
             bool success = false;
             while (!success) {
-                success = PingPong.StartReceiveDirectory(server.Receive(ref IPref), server);
+                success = PingPong.StartReceiveDirectory(server.Receive(ref remoteIPEndPoint), server);
             }
         }
 
@@ -122,11 +121,11 @@ namespace HostileNetwork {
             return fileName;
         }
 
-        private static string acceptCommand() {
+        private static string AcceptCommand() {
 
             string command = "";
 
-            Console.WriteLine("Usage: <get|send|dir>");
+            Console.WriteLine("\nUsage: <get|send|dir>");
             Console.Write("Please enter a command: ");
             command = Console.ReadLine();
 

@@ -1,10 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
-using System.Text;
 using System.Net.Sockets;
 using System.Security.Cryptography;
-using System.Collections.Generic;
+using System.Text;
 
 namespace HostileNetworkUtils {
     public class Utils {
@@ -14,9 +14,8 @@ namespace HostileNetworkUtils {
             int totalPackets = 0;
             byte[] directoryListingByteArray = GetDirectoryListing();
 
-            totalPackets = directoryListingByteArray.Length / (Constants.PAYLOAD_SIZE); //4 bytes for id, 32 for checksum
+            totalPackets = directoryListingByteArray.Length / (Constants.PAYLOAD_SIZE);
 
-            //if there's any remainder, we need one extra packet
             if (directoryListingByteArray.Length % (Constants.PAYLOAD_SIZE) != 0 || totalPackets < 1)
                 totalPackets++;
 
@@ -65,6 +64,7 @@ namespace HostileNetworkUtils {
         }
 
         public static bool VerifyChecksum(byte[] received) {
+
             byte[] inputChecksum = new Byte[16];
             for (int i = 0; i < inputChecksum.Length; i++) {
                 inputChecksum[i] = received[i + Constants.FIELD_CHECKSUM];
@@ -128,9 +128,9 @@ namespace HostileNetworkUtils {
 
             IPEndPoint remoteIPEndPoint = null;
             while (currentWorkingPacket < packetTotal) {
-                byte[] receivedBytes = udpSource.Receive(ref remoteIPEndPoint); //start with a new packet
+                byte[] receivedBytes = udpSource.Receive(ref remoteIPEndPoint);
 
-                if (VerifyChecksum(receivedBytes)) { //valid checksum
+                if (VerifyChecksum(receivedBytes)) {
                     byte[] payloadUnpacker = new byte[Constants.PAYLOAD_SIZE];
                     for (int i = 0; i < Constants.PAYLOAD_SIZE; i++) {
                         payloadUnpacker[i] = receivedBytes[i + Constants.FIELD_PAYLOAD];
@@ -140,11 +140,9 @@ namespace HostileNetworkUtils {
                     if (receivedPacket.getID() < currentWorkingPacket) {
                         AckPacket respond = new AckPacket(receivedPacket.getID());
                         SendTo(udpSource, respond.MakePacket());
-                        //return an ack
                     }
                     else if (receivedPacket.getID() == currentWorkingPacket) {
-                        File.AppendAllText(filename, Encoding.Unicode.GetString(payloadUnpacker));
-                        //write to file
+                        File.AppendAllText(filename, Encoding.Default.GetString(payloadUnpacker));
                     }
                     else if (receivedPacket.getID() > currentWorkingPacket) {
                         buffer.Add(receivedPacket);

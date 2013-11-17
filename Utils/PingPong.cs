@@ -1,17 +1,15 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
-using System.Text;
 using System.Net.Sockets;
-using System.Security.Cryptography;
-using System.Collections.Generic;
-using System.Diagnostics;
+using System.Text;
 
 namespace HostileNetworkUtils {
     public class PingPong {
 
         public static void sendUntilAck(Packet sendingPacket, UdpClient target) {
-            IPEndPoint remoteTarget = null;
+            IPEndPoint remoteIPEndPoint = null;
             bool sent = false;
             Stopwatch timeout = new Stopwatch();
             byte[] backup = new byte[Constants.PACKET_SIZE];
@@ -27,7 +25,7 @@ namespace HostileNetworkUtils {
                 timeout.Restart();
                 while (timeout.ElapsedMilliseconds < Constants.PACKET_TIMEOUT_MILLISECONDS) {
                     if (target.Available != 0) {
-                        byte[] receivedBytes = target.Receive(ref remoteTarget);
+                        byte[] receivedBytes = target.Receive(ref remoteIPEndPoint);
 
                         if (Utils.VerifyChecksum(receivedBytes)) {
                             if (receivedBytes[Constants.FIELD_TYPE] == Constants.TYPE_ACK) {
@@ -46,40 +44,66 @@ namespace HostileNetworkUtils {
                 }
             }
         }
+
         public static void SendAckTo(int id, UdpClient target) {
             AckPacket theAckToSend = new AckPacket(id);
             Utils.SendTo(target, theAckToSend.MyPacketAsBytes);
         }
+
         public static bool SendFileTo(string filename, UdpClient target) {
 
-            FileInfo localMeta = new FileInfo(filename);
+            FileInfo localMeta;
+            byte[] fileNameAsBytes;
+            int totalPackets;
 
-            byte[] fileNameAsBytes = Encoding.Default.GetBytes(filename);
+            try {
+                localMeta = new FileInfo(filename);
 
-            int totalPackets = (int)localMeta.Length / Constants.PAYLOAD_SIZE;
+                fileNameAsBytes = Encoding.Default.GetBytes(filename);
 
-            if ((int)localMeta.Length % Constants.PAYLOAD_SIZE != 0 || totalPackets < 1) {
-                totalPackets++;
+                totalPackets = (int)localMeta.Length / Constants.PAYLOAD_SIZE;
+
+                if ((int)localMeta.Length % Constants.PAYLOAD_SIZE != 0 || totalPackets < 1) {
+                    totalPackets++;
+                }
+            }
+            catch (ArgumentException ex) {
+                return false;
+            }
+            catch (FileNotFoundException ex) {
+
+                throw new FileNotFoundException();
             }
 
             FileMetadataPacket meta = new FileMetadataPacket(Constants.TYPE_FILE_DELIVERY, (int)localMeta.Length, filename.Length, fileNameAsBytes, totalPackets);
             sendUntilAck(meta, target);
 
+            try {
+                StreamReader localFile = new StreamReader(filename, Encoding.Default);
+                for (int i = 0; i < totalPackets; i++) {
 
-            StreamReader localFile = new StreamReader(filename, Encoding.Default);
-            for (int i = 0; i < totalPackets; i++) {
+                    char[] stagedPayload = new char[Constants.PAYLOAD_SIZE];
+                    localFile.Read(stagedPayload, 0, Constants.PAYLOAD_SIZE);
+                    byte[] encoded = Encoding.Default.GetBytes(stagedPayload);
+                    DataPacket stagedPacket = new DataPacket(Encoding.Default.GetBytes(stagedPayload), i);
 
-                char[] stagedPayload = new char[Constants.PAYLOAD_SIZE];
-                localFile.Read(stagedPayload, 0, Constants.PAYLOAD_SIZE);
-                byte[] encoded = Encoding.Default.GetBytes(stagedPayload);
-                DataPacket stagedPacket = new DataPacket(Encoding.Default.GetBytes(stagedPayload), i);
+                    sendUntilAck(stagedPacket, target);
 
-                sendUntilAck(stagedPacket, target);
-
+                }
+                localFile.Close();
             }
+            catch (UnauthorizedAccessException ex) {
+                Console.WriteLine("Insufficient permissions to access specified file: " + ex.Message);
+            }
+            catch (IOException ex) {
+                
+            }
+            
             return true;
         }
+
         public static bool ReceiveFileFrom(byte[] metadataAsBytes, UdpClient sender) {
+
             FileMetadata meta = new FileMetadata(metadataAsBytes);
             byte[] receivedBytes = null;
             IPEndPoint remoteIPEndPoint = null;
@@ -91,9 +115,11 @@ namespace HostileNetworkUtils {
                         File.Delete(Encoding.Default.GetString(meta.filename));
                         success = true;
                     }
-                    catch (Exception e) {
-                        Console.WriteLine("Failed to delete file: " + e.Message);
-
+                    catch (IOException ex) {
+                        return false;
+                    }
+                    catch (Exception ex) {
+                        return false;
                     }
                 }
             }
@@ -136,16 +162,13 @@ namespace HostileNetworkUtils {
                         SendAckTo(datapack.id, sender);
                     }
                 }
-                else {
-                    Console.WriteLine("checksum failure");
-                }
             }
             return true;
         }
 
         public static bool SendDirectoryTo(UdpClient target) {
 
-            IPEndPoint IPref = null;
+            IPEndPoint remoteIPEndPoint = null;
             byte[] directoryListing = Utils.GetDirectoryListing();
             int totalPackets = Utils.GetDirectoryPacketsTotal();
             DirectoryMetadataPacket directoryMetadataPacket = new DirectoryMetadataPacket(Constants.TYPE_DIRECTORY_DELIVERY, totalPackets, directoryListing.Length);
@@ -158,7 +181,7 @@ namespace HostileNetworkUtils {
                 timeout.Restart();
                 while (timeout.ElapsedMilliseconds < Constants.PACKET_TIMEOUT_MILLISECONDS) {
                     if (target.Available != 0) {
-                        receivedBytes = target.Receive(ref IPref);
+                        receivedBytes = target.Receive(ref remoteIPEndPoint);
                         if (!Utils.VerifyChecksum(receivedBytes)) {
                             continue;
                         }
@@ -189,7 +212,9 @@ namespace HostileNetworkUtils {
             }
             return true;
         }
+
         public static bool StartReceiveDirectory(byte[] metadataAsBytes, UdpClient target) {
+
             if (!Utils.VerifyChecksum(metadataAsBytes)) {
                 return false;
             }
@@ -203,13 +228,15 @@ namespace HostileNetworkUtils {
             return true;
 
         }
+
         public static bool CatchMetadataResend(byte[] metadataAsBytes, UdpClient target) {
+
             byte[] receivedBytes = null;
-            IPEndPoint dude = null;
-            DirMetadata meta = new DirMetadata(metadataAsBytes);
+            IPEndPoint remoteIPEndPoint = null;
+            DirMetadata directoryMetadata = new DirMetadata(metadataAsBytes);
             bool received = false;
             while (!received) {
-                receivedBytes = target.Receive(ref dude);
+                receivedBytes = target.Receive(ref remoteIPEndPoint);
                 if (Utils.VerifyChecksum(receivedBytes)) {
                     if (receivedBytes[Constants.FIELD_TYPE] == Constants.TYPE_DIRECTORY_DELIVERY) {
                         AckPacket ack = new AckPacket(-1);
@@ -220,19 +247,24 @@ namespace HostileNetworkUtils {
                 }
 
             }
-            return ReceiveAllDirectoryPackets(receivedBytes, meta, target);
+            return ReceiveAllDirectoryPackets(receivedBytes, directoryMetadata, target);
         }
 
         public static bool ReceiveAllDirectoryPackets(byte[] first, DirMetadata meta, UdpClient target) {
-            IPEndPoint refIPEndPoint = null;
+
+            IPEndPoint remoteIPEndPoint = null;
             if (first == null) { return false; }
             Data data = new Data(first);
-            Console.WriteLine(Encoding.Default.GetString(data.payload));
+
+            if (meta.dirLength < Constants.PAYLOAD_SIZE)
+                Console.WriteLine(Encoding.Default.GetString(data.payload,0,meta.dirLength));
+            else
+                Console.WriteLine(Encoding.Default.GetString(data.payload));
 
             SendAckTo(data.id, target);
             int currentPacket = 1;
             while (currentPacket < meta.totalPackets) {
-                byte[] recBytes = target.Receive(ref refIPEndPoint);
+                byte[] recBytes = target.Receive(ref remoteIPEndPoint);
                 if (!Utils.VerifyChecksum(recBytes)) {
                     continue;
                 }
@@ -251,7 +283,7 @@ namespace HostileNetworkUtils {
                     for (int i = 0; i < finalBytes.Length; i++) {
                         finalBytes[i] = data.payload[i + Constants.FIELD_PAYLOAD];
                     }
-                    Console.WriteLine(Encoding.ASCII.GetString(finalBytes));
+                    Console.WriteLine(Encoding.Default.GetString(finalBytes));
                     currentPacket++;
 
                     SendAckTo(data.id, target);

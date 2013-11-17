@@ -1,16 +1,6 @@
 ﻿using System.Diagnostics;
 
 namespace HostileNetworkUtils {
-
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~TO DO:~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    //open the file, get it's length in bytes
-    //divide the file length by Constants.PAYLOAD_SIZE. If there's a remainder, add one but disregard decimals.
-    //That resulting numebr is the total number of packets. Turn it into a byte array
-    //Store that array in the packet at location Constants.FIELD_TOTAL
-
-    //convert the file's length to a byte array
-    //store that byte array in the packet at location Constants.FIELD_FILE_LENGTH
-
     public abstract class Packet {
 
         private int myID;
@@ -33,7 +23,7 @@ namespace HostileNetworkUtils {
             get { return myType; }
             set { myType = value; }
         }
-        public byte getMyType() { return myType; } // eat it!
+        public byte getMyType() { return myType; }
         
         protected byte[] MyChecksum {
             get { return myChecksum; }

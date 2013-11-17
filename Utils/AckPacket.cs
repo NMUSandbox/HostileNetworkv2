@@ -3,7 +3,8 @@
 namespace HostileNetworkUtils {
     public class AckPacket : Packet {
 
-        public AckPacket(int id) : base(Constants.TYPE_ACK, id) {
+        public AckPacket(int id)
+            : base(Constants.TYPE_ACK, id) {
 
             MyPacketAsBytes = MakePacket();
         }
@@ -20,8 +21,7 @@ namespace HostileNetworkUtils {
                 packet[i + Constants.FIELD_ACK_ID] = IDbytes[i];
             }
             byte[] chksum = Utils.GetChecksum(packet);
-            for (int i = 0; i < chksum.Length; i++)
-            {
+            for (int i = 0; i < chksum.Length; i++) {
                 packet[i + Constants.FIELD_CHECKSUM] = chksum[i];
             }
             return packet;
