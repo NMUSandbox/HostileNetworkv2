@@ -19,6 +19,13 @@ namespace HostileNetwork {
             while (true) {
                 receivedBytes = client.Receive(ref remoteIPEndPoint);
 
+                IPHostEntry host;
+                host = Dns.GetHostEntry(remoteIPEndPoint.Address);
+
+                if (host.HostName == Constants.IGNORE_HOSTNAME_STRING) {
+                    continue;
+                }
+
                 sendAddress = remoteIPEndPoint.Address;
                 remoteIPEndPoint = new IPEndPoint(sendAddress, remoteIPEndPoint.Port);
                 client.Connect(remoteIPEndPoint);

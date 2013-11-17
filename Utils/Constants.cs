@@ -8,6 +8,7 @@
         public const int CLIENT_PORT = 58008;
         public const int SERVER_PORT = 59008;
         public const string SEND_ADDRESS_STRING = "127.0.0.1";
+        public const string IGNORE_HOSTNAME_STRING = "turing.nmu.edu";
         //public const string SEND_ADDRESS_STRING = "euclid.nmu.edu";
 
         public const int PACKET_SIZE = 512;
