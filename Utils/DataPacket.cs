@@ -8,9 +8,9 @@ namespace HostileNetworkUtils {
         public DataPacket(byte[] payload, int id)
             : base(id) {
 
-                this.payload = payload;
-                MyPacketAsBytes = MakePacket();
-                MyType = Constants.TYPE_DATA; // don't let sarkela EVER see this
+            this.payload = payload;
+            MyPacketAsBytes = MakePacket();
+            MyType = Constants.TYPE_DATA; // don't let sarkela EVER see this
         }
 
         public byte[] MakePacket() {

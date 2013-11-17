@@ -22,7 +22,7 @@ namespace HostileNetwork {
 
             while (true) {
                 receivedBytes = client.Receive(ref remoteIPEndPoint);
-                
+
                 sendAddress = remoteIPEndPoint.Address;
                 remoteIPEndPoint = new IPEndPoint(sendAddress, remoteIPEndPoint.Port);
                 client.Connect(remoteIPEndPoint);
@@ -32,12 +32,12 @@ namespace HostileNetwork {
 
                 switch (receivedBytes[Constants.FIELD_TYPE]) {
                     case Constants.TYPE_DIRECTORY_REQUEST:
-       //                 Console.WriteLine("DIR request received");
+                        //                 Console.WriteLine("DIR request received");
                         bool success = false;
                         while (!success) {
                             AckPacket ack = new AckPacket(-1);
                             Utils.SendTo(client, ack.MyPacketAsBytes);
-                      //      Console.WriteLine("Ackd the request, going into PingPong method");
+                            //      Console.WriteLine("Ackd the request, going into PingPong method");
                             success = PingPong.SendDirectoryTo(client);
                         }
                         break;
@@ -52,13 +52,12 @@ namespace HostileNetwork {
                         }
                         break;
                     case Constants.TYPE_FILE_REQUEST:
-                     //   Console.WriteLine("file request!");
-                         byte[] rawFilename = new byte[BitConverter.ToInt32(receivedBytes,Constants.FIELD_FILENAME_LENGTH)];
-                         for (int i = 0; i < rawFilename.Length; i++)
-                         {
-                             rawFilename[i] = receivedBytes[i + Constants.FIELD_FILENAME];
-                         }
-                       //  Console.WriteLine("parsing name:"+Encoding.ASCII.GetString(rawFilename));
+                        //   Console.WriteLine("file request!");
+                        byte[] rawFilename = new byte[BitConverter.ToInt32(receivedBytes, Constants.FIELD_FILENAME_LENGTH)];
+                        for (int i = 0; i < rawFilename.Length; i++) {
+                            rawFilename[i] = receivedBytes[i + Constants.FIELD_FILENAME];
+                        }
+                        //  Console.WriteLine("parsing name:"+Encoding.ASCII.GetString(rawFilename));
                         PingPong.SendFileTo(Encoding.ASCII.GetString(rawFilename), client);
                         break;
                     default:

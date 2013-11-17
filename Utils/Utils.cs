@@ -13,7 +13,7 @@ namespace HostileNetworkUtils {
 
             int totalPackets = 0;
             byte[] directoryListingByteArray = GetDirectoryListing();
-           
+
             totalPackets = directoryListingByteArray.Length / (Constants.PAYLOAD_SIZE); //4 bytes for id, 32 for checksum
 
             //if there's any remainder, we need one extra packet
@@ -48,7 +48,7 @@ namespace HostileNetworkUtils {
                 Console.WriteLine(PathEx.Message);
             }
 
-            return Encoding.Unicode.GetBytes(directoryListingString);
+            return Encoding.Default.GetBytes(directoryListingString);
         }
 
         public static byte[] InitializeArray(byte[] arr) {
@@ -92,21 +92,15 @@ namespace HostileNetworkUtils {
             return fileInfo.Length;
         }
 
-        public static int SendTo(UdpClient target, byte[] packet){
+        public static int SendTo(UdpClient target, byte[] packet) {
 
-            Random randomnessGenerator = new Random(DateTime.Now.Millisecond);  
+            Random randomnessGenerator = new Random(DateTime.Now.Millisecond);
 
-	        if (randomnessGenerator.NextDouble() < Constants.SIMULATION_DROP_RATE && Constants.DEBUG_DROP_AND_CORRUPT) {
-                if (Constants.DEBUG_PRINTING){
-                    Console.WriteLine("Packet dropped.");
-                }
+            if (randomnessGenerator.NextDouble() < Constants.SIMULATION_DROP_RATE && Constants.DEBUG_DROP_AND_CORRUPT) {
                 return -1;
             }
 
             if (randomnessGenerator.NextDouble() < Constants.SIMULATION_CORRPUTION_RATE && Constants.DEBUG_DROP_AND_CORRUPT) {
-                if (Constants.DEBUG_PRINTING){
-                    Console.WriteLine("Packet corrupted.");
-                }
                 for (int i = 0; i < 5; i++) {
                     packet[randomnessGenerator.Next(packet.GetLength(0))] = (byte)randomnessGenerator.Next(255);
                 }
@@ -129,7 +123,7 @@ namespace HostileNetworkUtils {
                 filenameBytes[i] = metadata[i + Constants.FIELD_FILENAME];
             }
             string filename = Encoding.Unicode.GetString(filenameBytes);
-            
+
             List<dataPacketBuffer> buffer = new List<dataPacketBuffer>();
 
             IPEndPoint remoteIPEndPoint = null;
@@ -138,7 +132,7 @@ namespace HostileNetworkUtils {
 
                 if (VerifyChecksum(receivedBytes)) { //valid checksum
                     byte[] payloadUnpacker = new byte[Constants.PAYLOAD_SIZE];
-                    for (int i = 0; i < Constants.PAYLOAD_SIZE; i++) { 
+                    for (int i = 0; i < Constants.PAYLOAD_SIZE; i++) {
                         payloadUnpacker[i] = receivedBytes[i + Constants.FIELD_PAYLOAD];
                     }
                     dataPacketBuffer receivedPacket = new dataPacketBuffer(BitConverter.ToInt32(receivedBytes, Constants.FIELD_PACKET_ID), payloadUnpacker);
@@ -152,8 +146,8 @@ namespace HostileNetworkUtils {
                         File.AppendAllText(filename, Encoding.Unicode.GetString(payloadUnpacker));
                         //write to file
                     }
-                    else if(receivedPacket.getID() > currentWorkingPacket){
-                        buffer.Add(receivedPacket); 
+                    else if (receivedPacket.getID() > currentWorkingPacket) {
+                        buffer.Add(receivedPacket);
                     }
                 }
 
@@ -173,16 +167,16 @@ namespace HostileNetworkUtils {
         }
 
         struct dataPacketBuffer {
-                private int ID;
-                private byte[] payload;
-                public dataPacketBuffer(int inID, byte[] inPayload) { 
-                    ID = inID; 
-                    payload = inPayload; 
-                }
-                public void setPayload(byte[] inArr){ payload = inArr; }
-                public byte[] getPayload() { return payload; }
-                public void setID(int newID) { ID = newID; }
-                public int getID() { return ID; }
+            private int ID;
+            private byte[] payload;
+            public dataPacketBuffer(int inID, byte[] inPayload) {
+                ID = inID;
+                payload = inPayload;
+            }
+            public void setPayload(byte[] inArr) { payload = inArr; }
+            public byte[] getPayload() { return payload; }
+            public void setID(int newID) { ID = newID; }
+            public int getID() { return ID; }
         };
     }
 }
